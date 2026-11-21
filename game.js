@@ -1368,11 +1368,17 @@ function trainUnit(unit) {
   unit.tier++;
   return true;
 }
-function benchUnit(id) {
+function benchUnit(id,confirmed=false) {
   const unit=state.units.find(candidate=>candidate.id===id);
   if(!unit || state.gameover || saveConflict || choosing()) return;
   if(unit.reserve) {
-    if(!confirm(roster[unit.type].name+'을(를) 대기열에서 내보낼까요?')) return;
+    if(!confirmed) {
+      showModal(`<h2>동료 내보내기</h2><p>${roster[unit.type].name}을(를) 대기열에서 내보내고 보석 1개를 받습니다.</p><div class="title-menu"><button id="cancelReleaseUnit">돌아가기</button><button id="releaseUnit" class="danger">내보내기</button></div>`);
+      modalBack=() => showUnitRecipes(id);
+      $('cancelReleaseUnit').onclick=modalBack;
+      $('releaseUnit').onclick=()=>benchUnit(id,true);
+      return;
+    }
     state.units=state.units.filter(candidate=>candidate!==unit);
     state.gems++;
     toast('동료를 내보냈습니다 · 보석 +1');
