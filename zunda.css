@@ -66,3 +66,16 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 #chargeMeter { position:absolute; inset:auto 12px 46px; padding:8px; background:#291a31f2; border:1px solid #f5a986; border-radius:8px; color:#ffe6c7; font-size:12px; pointer-events:none; }
 #chargeMeter div { height:4px; margin-top:5px; border-radius:3px; overflow:hidden; background:#613749; }
 #chargeFill { display:block; height:100%; background:#ffb287; }
+
+#placement { position:absolute; inset:0; z-index:2; pointer-events:none; }
+#placement[hidden], #bench[hidden] { display:none; }
+.deploy-pad { position:absolute; pointer-events:auto; transform:translate(-50%,-50%); width:34px; height:34px; padding:0; border-radius:50%; font-weight:950; font-size:18px; color:#ccfff5; background:#122844e8; border:2px solid #8fe7d5; box-shadow:0 0 8px #68ffcc80; }
+.deploy-pad.occupied { color:#ffe4a8; border-color:#ffc17c; background:#3a2d44d9; }
+.deploy-pad[aria-pressed=true] { color:#1b2c2a; background:#c7ffd5; }
+#reserveTab,#bench { min-height:32px; padding:2px 6px; white-space:nowrap; font-size:11px; }
+#reserveTab[aria-pressed=true] { color:#d1ffcf; border-color:#86d6aa; background:#30494c; }
+#bench { color:#ffdfa7; margin-left:4px; }
+[data-expedition] #roster .section-title { min-height:48px; gap:5px; flex-wrap:wrap; }
+[data-expedition] #cards { min-height:64px; }
+[data-expedition] .formation-card { grid-template-columns:40px 1fr; flex-basis:120px; }
+[data-expedition] .formation-card img { width:40px; height:44px; }

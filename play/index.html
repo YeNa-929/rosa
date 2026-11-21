@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#181323">
   <title>차원 원정대 · 비영리 팬게임</title>
-  <meta name="description" content="35종의 동료를 모아 64가지 몬스터로 조합하고, 네 전장과 16웨이브의 보스에 도전하세요.">
+  <meta name="description" content="35종의 동료를 모아 64가지 몬스터로 조합하고, 네 전장과 32웨이브의 보스에 도전하세요.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ko_KR">
   <meta property="og:site_name" content="차원 원정대">
@@ -21,10 +21,9 @@
   <link rel="stylesheet" href="style.css?v=zunda-evolutions">
   <script defer src="art.js?v=moonlit-rose-court"></script>
   <script defer src="audio.js?v=battle-music"></script>
-  <script defer src="guest-art.js?v=1"></script>
-  <script defer src="expedition.js?v=crossover-1"></script>
-  <script defer src="game.js?v=active-defense-1"></script>
-  <link rel="stylesheet" href="zunda.css?v=active-defense-1">
+  <script defer src="expedition.js?v=wide-front-1"></script>
+  <script defer src="game.js?v=wide-front-1"></script>
+  <link rel="stylesheet" href="zunda.css?v=wide-front-1">
 </head>
 <body data-expedition>
   <main id="game">
@@ -46,13 +45,14 @@
     </section>
     <div id="stage">
       <canvas id="board" aria-label="차원 원정대 전투 필드"></canvas>
+      <div id="placement" aria-label="전장 배치 위치" hidden></div>
       <div class="stage-caption"><span id="regionName">별등불 협곡</span><span id="roundflag">전투 중</span></div>
       <div id="announcement" role="status"></div>
       <div id="toast" role="status"></div>
       <div id="chargeMeter" hidden><b id="chargeLabel"></b><div><i id="chargeFill"></i></div></div>
     </div>
     <section id="roster" aria-label="나의 동료">
-      <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
+      <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="reserveTab" type="button" aria-pressed="false">대기 0</button><button id="bench" type="button" hidden>대기열로 이동</button><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
       <div id="cards"></div>
     </section>
     <footer>
