@@ -693,6 +693,14 @@ function moveEnemy(m,dt) {
   }
 }
 
+function unitAttackDamage(unit) {
+  const upgrade=expedition ? .25*Math.min(8,state.upgrade)+.12*Math.max(0,state.upgrade-8) : state.upgrade*.25;
+  return roster[unit.type].dmg*Math.pow(expedition ? 1.98 : 2.15,unit.tier-1)*(1+upgrade+state.power);
+}
+function unitAttackRate(unit) {
+  return roster[unit.type].rate*(1+(unit.tier-1)*.1+state.tempo);
+}
+
 function update(dt){toastTimer-=dt;annTimer-=dt;if(toastTimer<=0)$('toast').style.opacity=0;if(annTimer<=0)$('announcement').style.opacity=0;
 if(!path||state.paused||saveConflict||state.gameover||choosing()||$('modal').open)return;
 visualTime += dt;
@@ -710,7 +718,7 @@ if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&stat
   } else { spawn();state.spawnTimer=expedition && state.wave>=5 && state.spawned%5!==0 ? Math.max(.21,.64-state.wave*.014) : Math.max(.26,.78-state.wave*.013)}}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
 else{state.breakTimer-=dt;if(state.breakTimer<=0){state.wave++;state.spawned=0;state.spawnTimer=.5;state.phase='wave';announce('🌙 WAVE '+state.wave);persist()}}
 for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}moveEnemy(m,dt);if(m.t>=1){m.hp=-1;const loss=m.boss?(expedition ? state.life : 5):m.warded?8:1;if(expedition && !m.boss && state.shield>0){state.shield--;announce('방어막이 돌파를 막았습니다');}else state.life-=loss;if(state.life<=0){state.life=0;end();return}}}
-for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)continue;const t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(Math.hypot(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=t.dmg*Math.pow(expedition?1.98:2.15,u.tier-1)*(1+(expedition? .25*Math.min(8,state.upgrade)+.12*Math.max(0,state.upgrade-8) : state.upgrade*.25)+state.power)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/(t.rate*(1+(u.tier-1)*.1+state.tempo))}}
+for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)continue;const t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(Math.hypot(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=unitAttackDamage(u)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/unitAttackRate(u)}}
 for(const b of bullets){if(b.target.hp<=0){b.dead=true;continue}const dx=b.target.x-b.x,dy=b.target.y-b.y,d=Math.hypot(dx,dy);if(d<=Math.max(13,b.speed*dt)){hit(b.target,b.damage,b);b.dead=true}else{const step=Math.min(d,b.speed*dt);b.x+=dx/d*step;b.y+=dy/d*step}}
 bullets=bullets.filter(b=>!b.dead);mobs=mobs.filter(m=>m.hp>0);particles.forEach(p=>p.life-=dt);particles=particles.filter(p=>p.life>0);
 saveTimer+=dt;if(saveTimer>12){saveTimer=0;persist()}}
@@ -941,7 +949,40 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+function autoDeploy() {
+  if(state.gameover || saveConflict || choosing() || $('modal').open || !deploymentPads.length || !state.units.length) return;
+  const ranked=state.units.map(unit=>({
+    unit,
+    power:unitAttackDamage(unit)*unitAttackRate(unit)*(unit.type===2 ? 1.375 : 1)
+  })).sort((a,b)=>b.power-a.power || Number(a.unit.reserve)-Number(b.unit.reserve) ||
+    roster[b.unit.type].range-roster[a.unit.type].range || a.unit.id-b.unit.id);
+  const picked=ranked.slice(0,Math.min(capacity(),deploymentPads.length)).map(entry=>entry.unit);
+  const strongest=new Set(picked);
+  for(const unit of state.units) {
+    if(strongest.has(unit)) continue;
+    unit.reserve=true;
+    unit.slot=undefined;
+    unit.moveFrom=null;
+  }
+  const kept=new Set(picked.filter(unit=>!unit.reserve && deploymentPads[unit.slot]).map(unit=>unit.slot));
+  const free=deploymentPads.map((_,slot)=>slot).filter(slot=>!kept.has(slot));
+  let moved=0;
+  for(const unit of picked) {
+    if(!unit.reserve && deploymentPads[unit.slot]) continue;
+    unit.reserve=false;
+    unit.slot=free.shift();
+    unit.moveFrom=null;
+    unit.born=visualTime;
+    moved++;
+  }
+  selectedUnit=null;
+  reserveView=false;
+  toast('전투력 기준 '+picked.length+'명 출전'+(moved ? ' · '+moved+'명 새로 배치' : ' · 기존 편성 유지'));
+  refresh();
+  persist();
+}
 function renderFormation() {
+  $('autoDeploy').disabled=state.gameover || !state.units.length;
   $('reserveTab').textContent=reserveView?'출전 보기':'대기 '+(state.units.length-deployedCount());
   $('reserveTab').setAttribute('aria-pressed',reserveView);
   $('cards').innerHTML=state.units.filter(u=>!!u.reserve===reserveView).map(u=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" draggable="false" referrerpolicy="no-referrer" src="${portraits[u.type]}" style="--portrait-hue:${roster[u.type].hue??0}deg"><span>${roster[u.type].name}</span><strong>${u.reserve?'대기':(u.slot+1)+'번'} · ★${u.tier}</strong></button>`).join('')
@@ -1325,6 +1366,7 @@ if(expedition) {
       if(id!==null) openUnitRecipes(id);
     }
   });
+  $('autoDeploy').onclick=autoDeploy;
   $('reserveTab').onclick=()=>{reserveView=!reserveView;selectedUnit=null;refresh();};
   $('bench').onclick=()=>{
     const selected=state.units.find(unit=>unit.id===selectedUnit);
@@ -1402,16 +1444,16 @@ function showTitleScreen() {
 
 // Change the release ID and notes together when publishing a player-facing update.
 const release = {
-  id:'2026-11-21-formation-drag',
-  title:'전장 드래그 배치와 동료 진화 메뉴',
+  id:'2026-11-21-auto-formation',
+  title:'전투력 기준 자동 배치',
   notes:[
-    '전장 캐릭터 또는 동료 카드를 드래그해 원하는 배치 칸에 놓습니다. 동료가 있는 칸에 놓으면 자리를 바꿉니다.',
-    '캐릭터를 탭하면 조합 재료 이미지와 보유 여부를 바로 확인하고 조합할 수 있습니다.',
-    '일반 웨이브는 자동 보급을 받고 바로 이어집니다. 보스 격파 뒤에만 다음 구역의 작전을 선택합니다.'
+    '자동 배치를 누르면 출전·대기 동료 중 전투력이 높은 순으로 출전 자리를 채웁니다.',
+    '별 등급을 반영한 초당 공격 피해를 비교합니다. 계속 출전하는 동료는 현재 자리를 유지합니다.'
   ]
 };
 const releaseHistory = [
   release,
+  {title:'전장 드래그 배치와 동료 진화 메뉴',notes:['전장 동료를 드래그해 배치하고, 탭하면 조합·진화가 열립니다. 일반 웨이브 보급은 자동으로 받습니다.']},
   {title:'인간형과 몬스터 조합',notes:['같은 유형끼리 조합하도록 정리하고 새 인간형 동료를 추가했습니다. 스타팅 동료 공격 자세와 자동 소환 결과 표시도 추가됐습니다.']},
   {title:'주인공 진화와 전용 무기',notes:['네 주인공의 인간형 중간 진화와 전용 무기, 전체 화면 타이틀, 영입·조합 미리보기가 추가됐습니다.']},
   {title:'네 명의 시작 동료와 새 조합표',notes:['첫 동료 네 명의 고유 공격과 재료 보유 여부를 보여주는 조합표가 추가됐습니다. 타이틀에 업데이트 내역과 저장된 원정 이어하기를 추가했습니다.']},

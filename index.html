@@ -24,8 +24,8 @@
   <script defer src="art.js?v=moonlit-rose-court"></script>
   <script defer src="audio.js?v=battle-score-2"></script>
   <script defer src="expedition.js?v=fusion-lineages-1"></script>
-  <script defer src="game.js?v=formation-drag-1"></script>
-  <link rel="stylesheet" href="zunda.css?v=formation-drag-1">
+  <script defer src="game.js?v=auto-formation-1"></script>
+  <link rel="stylesheet" href="zunda.css?v=auto-formation-1">
 </head>
 <body data-expedition>
   <main id="game">
@@ -56,7 +56,7 @@
       <div id="chargeMeter" hidden><b id="chargeLabel"></b><div><i id="chargeFill"></i></div></div>
     </div>
     <section id="roster" aria-label="나의 동료">
-      <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="reserveTab" type="button" aria-pressed="false">대기 0</button><button id="bench" type="button" hidden>대기열로 이동</button><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
+      <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="reserveTab" type="button" aria-pressed="false">대기 0</button><button id="autoDeploy" type="button" title="별 등급과 초당 공격 피해를 기준으로 출전 동료를 편성합니다">자동 배치</button><button id="bench" type="button" hidden>대기열로 이동</button><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
       <div id="cards"></div>
       <p id="autoRecruitFeed" class="auto-recruit-feed" role="status" aria-atomic="true"></p>
     </section>
