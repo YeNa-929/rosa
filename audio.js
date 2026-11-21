@@ -1,4 +1,4 @@
-/* Original 8-bar battle loop, synthesized locally with Web Audio. */
+/* Original battle scores, synthesized locally with Web Audio. */
 'use strict';
 
 const CourtAudio = (() => {
@@ -19,6 +19,15 @@ const CourtAudio = (() => {
     deep:{bpm:136,lead:'triangle',
       melody:[[74,81,77,84,81,86,84,81],[70,74,77,81,85,81,77,74],[72,79,76,83,79,84,83,79],[73,76,79,85,88,85,79,76]],
       roots:[38,34,36,33],chords:[[62,65,69],[58,62,65],[60,64,67],[61,64,67]]},
+    harbor:{bpm:132,lead:'sine',beats:6,kicks:[0,3],bass:[0,3],stabs:[1,4],snare:[3],
+      melody:[[74,0,78,81,0,78],[76,79,0,83,81,0],[78,0,81,86,85,81],[79,76,0,73,0,0]],
+      roots:[38,40,35,33],chords:[[62,66,69],[64,67,71],[59,62,66],[61,64,69]]},
+    chase:{bpm:166,lead:'square',kicks:[0,3,4,7],bass:[0,3,6],stabs:[2,5],snare:[2,6],
+      melody:[[72,0,75,0,79,77,75,0],[70,74,0,77,0,82,77,74],[68,0,72,75,0,79,0,75],[67,71,74,0,77,74,71,0]],
+      roots:[36,34,32,31],chords:[[60,63,67],[58,62,65],[56,60,63],[55,59,62]]},
+    lantern:{bpm:112,lead:'triangle',kicks:[0,5],bass:[0,4,7],stabs:[0,5],snare:[4],
+      melody:[[83,0,0,78,0,81,78,0],[79,0,74,0,0,78,0,0],[76,0,79,83,0,86,0,0],[81,0,0,78,76,0,74,0]],
+      roots:[35,31,40,38],chords:[[62,66,71],[59,62,67],[64,67,71],[62,66,69]]},
     boss:{bpm:178,lead:'sawtooth',
       melody:[[62,62,74,0,65,62,68,67],[61,61,73,0,64,61,67,65],[62,65,74,77,74,68,67,65],[60,63,72,75,73,67,64,61]],
       roots:[38,37,38,36],chords:[[62,65,68],[61,64,67],[62,65,69],[60,63,67]]}
@@ -74,18 +83,22 @@ const CourtAudio = (() => {
     }
     if (next<now) next=now+.02;
     while (next<now+.11) {
-      const bar = Math.floor(position/8);
-      const eighth = position%8;
-      const note = song.melody[bar][eighth];
-      if (note) voice(music,note,next,step*.95,.055,song.lead);
-      if (eighth%2===0) {
-        voice(music,song.roots[bar]+(eighth===4 ? 7 : 0),next,step*1.65,.075,'triangle');
-        voice(music,41,next,.13,.12,'sine',40);
-      } else {
-        for (const harmony of song.chords[bar%4]) voice(music,harmony,next,.13,.014,'triangle');
+      const beats=song.beats ?? 8;
+      const bar=Math.floor(position/beats)%song.melody.length;
+      const beat=position%beats;
+      const answer=Math.floor(position/(beats*song.melody.length))%2===1;
+      const note=song.melody[bar][beat];
+      if(note) {
+        voice(music,note,next,step*.95,.055,song.lead);
+        if(answer && beat%3===0) voice(music,note-12,next+step*.48,step*.8,.025,'sine');
       }
-      if (eighth===2 || eighth===6) voice(music,79,next,.075,.026,'square',150);
-      position=(position+1)%(song.melody.length*8);
+      if((song.bass ?? [0,2,4,6]).includes(beat))
+        voice(music,song.roots[bar]+(beat===4?7:0),next,step*1.65,.075,'triangle');
+      if((song.kicks ?? [0,2,4,6]).includes(beat)) voice(music,41,next,.13,.12,'sine',40);
+      if((song.stabs ?? [1,3,5,7]).includes(beat))
+        for(const harmony of song.chords[bar%4]) voice(music,harmony,next,step*(song.stabs?1.8:.8),.014,'triangle');
+      if((song.snare ?? [2,6]).includes(beat)) voice(music,79,next,.075,.026,'square',150);
+      position=(position+1)%(2*song.melody.length*beats);
       next+=step;
     }
   }
