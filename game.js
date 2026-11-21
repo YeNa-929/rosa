@@ -1606,12 +1606,15 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.17',
-  title:'세로 전장과 새 전투 음악',
-  notes:['가로 UI를 제거했습니다. 일반 전투 음악 여섯 곡이 두 웨이브마다 교대합니다.']
+  version:'1.18',
+  title:'전체 화면 전장 너비 수정',
+  notes:['동료 카드가 늘어나도 전장과 조작 버튼이 화면 안에 유지됩니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.17',title:'세로 전장과 새 전투 음악',
+  notes:['가로 UI를 제거했습니다. 일반 전투 음악 여섯 곡이 두 웨이브마다 교대합니다.']
+  },
   {version:'1.16',title:'세로 전체 화면 잘림 수정',
   notes:['실제 전체 화면에서 조작 후에도 세로 배치를 유지하고, 보이는 화면 너비와 높이를 모두 사용합니다.']
   },

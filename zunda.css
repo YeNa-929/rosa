@@ -397,6 +397,7 @@ body[data-expedition] {
 
 body[data-expedition].fit-screen #game {
     display:grid;
+    grid-template-columns:minmax(0,1fr);
     grid-template-rows:auto auto minmax(0,1fr) auto;
   }
 body[data-expedition].fit-screen #saveNotice { grid-row:2; }
@@ -404,6 +405,7 @@ body[data-expedition].fit-screen .battlefield-layout {
     grid-row:3;
     min-height:0;
     display:grid;
+    grid-template-columns:minmax(0,1fr);
     grid-template-rows:auto auto minmax(0,1fr) auto;
   }
 body[data-expedition].fit-screen #stage { min-height:0; }
