@@ -90,7 +90,7 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 #saveNotice { margin:6px 10px; padding:8px; background:#512e38; color:#fff1e4; border:1px solid #e7b073; border-radius:7px; font-size:12px; }
 #saveNotice[hidden] { display:none; }
 #reloadSave { margin-left:6px; min-height:32px; padding:2px 7px; }
-[data-expedition] .tactics { grid-template-columns:repeat(3,minmax(0,1fr)); }
+[data-expedition] .tactics { grid-template-columns:repeat(4,minmax(0,1fr)); }
 
 [data-expedition] dialog.title-screen {
   box-sizing:border-box;
@@ -101,9 +101,7 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
   margin:0;
   border:0;
   border-radius:0;
-  background:
-    linear-gradient(180deg,#0b132168 0%,#111b2b80 38%,#101624f5 85%),
-    #172537 url("assets/fields/canyon.webp") center / cover no-repeat;
+  background:radial-gradient(ellipse at 50% 30%,#263153,#0c1220 74%);
 }
 .title-screen .panel {
   box-sizing:border-box;
@@ -111,10 +109,18 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
   display:grid;
   place-items:center;
   text-align:center;
-  padding:24px;
+  padding:16px 12px 28px;
+}
+.title-art {
+  display:block;
+  width:min(100%,650px);
+  height:min(63dvh,620px);
+  object-fit:contain;
+  margin:0 auto 6px;
+  mask-image:linear-gradient(#000 90%,transparent);
 }
 .title-screen h2 {
-  margin:0 0 32px;
+  margin:0 0 18px;
   color:#fff7db;
   font:900 clamp(38px,10vw,86px)/1.17 system-ui,sans-serif;
   letter-spacing:-.05em;
@@ -129,3 +135,36 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
   font-size:16px;
   font-weight:850;
 }
+
+.recipe-filter select {
+  flex:1;
+  min-height:42px;
+  font:inherit;
+  color:inherit;
+  background:#20273b;
+  border:1px solid #707c97;
+  border-radius:7px;
+  padding:4px 8px;
+}
+.recipe .recipe-material { margin-block:2px; }
+.recipe .owned { color:#c8f69c; }
+.recipe .missing { color:#ffd3ac; }
+.recipe:disabled { opacity:.8; }
+
+.title-actions {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:10px;
+}
+#releaseHistory, #closeReleaseHistory {
+  min-height:48px;
+  padding:0 18px;
+  color:#fff3cb;
+  background:#293653;
+  border-color:#838faf;
+}
+
+.title-menu { display:grid; gap:8px; }
+.title-menu button { min-height:48px; padding:6px 14px; }
+#continueExpedition { border-color:#e6d59b; color:#f8e8af; }
