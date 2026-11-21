@@ -412,7 +412,7 @@ function showModal(html) {
   if (!$('modal').open) $('modal').showModal();
 }
 function closeModal() { if(!choosing()) $('modal').close(); }
-if(expedition) $('modal').addEventListener('cancel',event=>{if(choosing())event.preventDefault();});
+if(expedition) $('modal').addEventListener('cancel',event=>{if(choosing() || $('modal').classList.contains('title-screen')) event.preventDefault();});
 $('close').onclick = closeModal;
 $('summon').onclick=()=>summon();$('merge').onclick=merge;$('upgrade').onclick=upgrade;$('spell').onclick=spell;
 $('speed').onclick=()=>{state.speed=state.speed===1?2:state.speed===2?3:1;refresh()};$('pause').onclick=()=>{if(saveConflict){location.reload();return;}state.paused=!state.paused;refresh()};$('auto').onclick=()=>{state.auto=!state.auto;refresh();persist()};$('reset').onclick=restart;
@@ -1116,11 +1116,26 @@ function enterGame() {
   }
 }
 
+function showTitleScreen() {
+  refresh();
+  const dialog=$('modal');
+  dialog.classList.add('title-screen');
+  showModal('<h2>로사 원정대</h2><button id="startExpedition">게임 시작하기</button>');
+  $('close').hidden=true;
+  $('startExpedition').onclick=()=>{
+    dialog.classList.remove('title-screen');
+    dialog.close();
+    enterGame();
+  };
+  $('startExpedition').focus();
+}
+
 // Change the release ID and notes together when publishing a player-facing update.
 const release = {
-  id:'2026-11-21-hero-fusions',
-  title:'새 동료와 검붉은 군단',
+  id:'2026-11-21-title-screen',
+  title:'새 타이틀 화면과 원정대 동료',
   notes:[
+    '타이틀 화면에서 게임 시작하기를 눌러 원정을 시작할 수 있습니다.',
     '상위 조합 동료 새벽검 로사, 서리술사 프패, 뇌전궁 소설가, 월식검 빰을 만나보세요.',
     '아군 용 네 마리가 새 일러스트를 얻었고, 적군에는 인간형 추적병·돌격병·방패병이 합류했습니다.',
     '아군과 겹치는 적은 잠시 반투명해집니다. 전투 음악 3곡과 보스 경고음도 추가됐습니다.'
@@ -1134,13 +1149,13 @@ if(expedition && seenRelease!==release.id) {
   refresh();
   showModal('<h2>로사 원정대 업데이트</h2><p><strong>'+release.title+'</strong></p><ul>'+
     release.notes.map(note=>'<li>'+note+'</li>').join('')+
-    '</ul><button id="enterAfterUpdate">원정 시작</button>');
+    '</ul><button id="enterAfterUpdate">확인</button>');
   $('close').hidden=true;
   const finishRelease=()=>{
     try { localStorage.setItem(releaseKey,release.id); } catch {}
     $('modal').removeEventListener('cancel',cancelRelease);
     $('modal').close();
-    enterGame();
+    showTitleScreen();
   };
   const cancelRelease=event=>{
     event.preventDefault();
@@ -1149,6 +1164,7 @@ if(expedition && seenRelease!==release.id) {
   $('modal').addEventListener('cancel',cancelRelease);
   $('enterAfterUpdate').onclick=finishRelease;
   $('enterAfterUpdate').focus();
-} else enterGame();
+} else if(expedition) showTitleScreen();
+else enterGame();
 requestAnimationFrame(frame);
 })();

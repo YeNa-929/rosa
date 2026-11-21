@@ -91,3 +91,41 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 #saveNotice[hidden] { display:none; }
 #reloadSave { margin-left:6px; min-height:32px; padding:2px 7px; }
 [data-expedition] .tactics { grid-template-columns:repeat(3,minmax(0,1fr)); }
+
+[data-expedition] dialog.title-screen {
+  box-sizing:border-box;
+  width:100%;
+  height:100%;
+  max-width:none;
+  max-height:none;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:
+    linear-gradient(180deg,#0b132168 0%,#111b2b80 38%,#101624f5 85%),
+    #172537 url("assets/fields/canyon.webp") center / cover no-repeat;
+}
+.title-screen .panel {
+  box-sizing:border-box;
+  min-height:100%;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  padding:24px;
+}
+.title-screen h2 {
+  margin:0 0 32px;
+  color:#fff7db;
+  font:900 clamp(38px,10vw,86px)/1.17 system-ui,sans-serif;
+  letter-spacing:-.05em;
+  text-shadow:0 4px 24px #091321,0 2px 3px #091321;
+}
+.title-screen #startExpedition, #enterAfterUpdate {
+  min-height:48px;
+  padding:0 32px;
+  background:linear-gradient(#fff3be,#dfb86e);
+  border-color:#ffdf9b;
+  color:#241b17;
+  font-size:16px;
+  font-weight:850;
+}
