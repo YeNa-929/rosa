@@ -58,6 +58,7 @@ let reserveView=false;
 const mergeCount = expedition ? 2 : 3;
 let selectedUnit = null;
 let deploymentPads=[], preferredDeploymentSlots=[];
+let cancelFormationDrag=()=>{};
 let command=null, slowField=null;
 let breaking=null, fieldImpact=0;
 let bossWarningWave=0;
@@ -68,7 +69,7 @@ let combatScaleX=1, combatScaleY=1;
 const combatDistance=(x,y)=>Math.hypot(x/combatScaleX,y/combatScaleY);
 let terrain, path, lengths, pathLength, rosterKey, rosterOver, nextRefresh = 0, spellFlash = 0;
 const SAVE=expedition ? 'zunda-expedition-v1' : 'wonderland-defense-v2';let state, lastStored=null, saveConflict=false, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0;
-const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false,targetPriority:'lead',tactics:2,shield:0,expansions:0,shopOffers:[],shopCount:0,contract:'none',gear:{}});
+const fresh=()=>({wave:1,gems:14,weaponStones:0,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false,targetPriority:'lead',tactics:2,shield:0,expansions:0,shopOffers:[],shopCount:0,contract:'none',gear:{}});
 function restore() {
   const defaults=fresh();
   try {
@@ -78,6 +79,11 @@ function restore() {
     const {encounter,...progress}=saved;
     const result={...defaults,...progress,spawned:0,phase:keepPhase(saved.phase),spawnTimer:.8,breakTimer:0,
       paused:saved.gameover===true||saved.life===0,gameover:saved.gameover===true||saved.life===0};
+    if(expedition) {
+      const completed=Math.max(0,Math.min(finalWave,Math.trunc(saved.wave)-1+Number(saved.phase==='reward' || saved.cleared===true)));
+      result.weaponStones=Number.isSafeInteger(saved.weaponStones) ? Math.max(0,saved.weaponStones) :
+        completed+Math.floor(completed/bossInterval);
+    }
     if(expedition) result.shopOffers=Array.isArray(saved.shopOffers) ? saved.shopOffers.filter(type=>recruitableTypes.has(type)) : [];
     if(expedition) result.gear=Object.fromEntries(ZundaExpedition.rookies.map(({family})=>{
       const rank=saved.gear?.[family];
@@ -124,6 +130,7 @@ function persist() {
     if(expedition && localStorage.getItem(SAVE)!==lastStored) {
       if(!saveConflict) {
         saveConflict=true;
+        cancelFormationDrag();
         state.paused=true;
         $('modal').close();
         $('saveNotice').hidden=false;
@@ -174,14 +181,26 @@ const regionPads = regionRoutes.map(route=>{
   for(const [index,x] of [.16,.30,.44,.58].entries()) pads.push({x:fromRight ? 1-x : x,y,entrance:true,label:'입구 '+(index+1)});
   return pads;
 });
-function reconcileSlots() {
+function reconcileSlots(atEntrance=false) {
   if(!expedition || deploymentPads.length===0) return;
+  const strongestByFamily=new Map();
+  for(const unit of state.units) {
+    const family=roster[unit.type].family;
+    if(unit.reserve || family===undefined) continue;
+    const current=strongestByFamily.get(family);
+    if(current && combatPower(current)>=combatPower(unit)) unit.reserve=true;
+    else {
+      if(current) current.reserve=true;
+      strongestByFamily.set(family,unit);
+    }
+  }
   const used=new Set();
   let remaining=capacity();
   for(const unit of state.units) {
     if(!unit.reserve && remaining--<=0) unit.reserve=true;
     if(unit.reserve) {unit.slot=undefined;continue;}
-    if(!Number.isInteger(unit.slot) || !deploymentPads[unit.slot] || used.has(unit.slot)) unit.slot=undefined;
+    if(atEntrance) unit.moveFrom=null;
+    if(atEntrance || !Number.isInteger(unit.slot) || !deploymentPads[unit.slot] || used.has(unit.slot)) unit.slot=undefined;
     else used.add(unit.slot);
   }
   for(const unit of state.units) {
@@ -260,7 +279,9 @@ function unitPos(i) {
 }
 
 function recruit(type) {
-  state.units.push({id:uid++,type,tier:1,reserve:expedition&&deployedCount()>=capacity(),cool:0,born:visualTime});
+  const family=roster[type].family;
+  const alreadyDeployed=family!==undefined && state.units.some(unit=>!unit.reserve && roster[unit.type].family===family);
+  state.units.push({id:uid++,type,tier:1,reserve:expedition && (alreadyDeployed || deployedCount()>=capacity()),cool:0,born:visualTime});
 }
 const choosing = () => state.phase==='draft'||state.phase==='reward';
 function showChoices() {
@@ -303,6 +324,7 @@ const sectorRules={
 };
 const sectorOffer=()=>expedition && state.phase==='reward' && state.wave%bossInterval===0;
 function advanceExpeditionWave() {
+  cancelFormationDrag();
   const previous=ZundaExpedition.region(state.wave);
   state.wave++;
   state.shopCount=0;
@@ -315,8 +337,11 @@ function advanceExpeditionWave() {
   command=null;
   slowField=null;
   if(previous!==ZundaExpedition.region(state.wave) || state.wave===17) resize();
+  selectedUnit=null;
+  reconcileSlots(true);
+  renderPads();
 }
-function continueWithSupplies(gems=0,gold=0) {
+function continueWithSupplies(gems=0,gold=0,stones=0) {
   const wave=state.wave;
   const healed=Math.max(0,Math.min(25-state.life,2));
   state.gems++;
@@ -325,10 +350,10 @@ function continueWithSupplies(gems=0,gold=0) {
   state.power+=.07;
   state.tempo+=.05;
   advanceExpeditionWave();
-  reportWaveSupplies(wave,gems+1,gold+10,healed);
+  reportWaveSupplies(wave,gems+1,gold+10,stones,healed);
 }
-function reportWaveSupplies(wave,gems,gold,healed=0) {
-  $('waveSupply').textContent=wave+'웨이브 보급 · 보석 +'+gems+' · 골드 +'+gold+(healed ? ' · 생명 +'+healed : '');
+function reportWaveSupplies(wave,gems,gold,stones,healed=0) {
+  $('waveSupply').textContent=wave+'웨이브 보급 · 보석 +'+gems+' · 골드 +'+gold+(stones ? ' · 연마석 +'+stones : '')+(healed ? ' · 생명 +'+healed : '');
 }
 function clearWave() {
   const bonus=expedition ? sectorRules[state.contract] : null;
@@ -336,6 +361,8 @@ function clearWave() {
   const gold=15+state.wave*4+(bonus?.gold??0);
   state.gems+=gems;
   state.gold+=gold;
+  const stones=expedition ? (state.wave%bossInterval===0 ? 2 : 1) : 0;
+  state.weaponStones+=stones;
   state.elite=false;
   if(!expedition) {
     state.phase='break';
@@ -346,11 +373,11 @@ function clearWave() {
     end();
     return;
   } else if(state.wave%bossInterval===0) {
-    reportWaveSupplies(state.wave,gems,gold);
+    reportWaveSupplies(state.wave,gems,gold,stones);
     state.phase='reward';
     showChoices();
   } else {
-    continueWithSupplies(gems,gold);
+    continueWithSupplies(gems,gold,stones);
   }
   persist();
 }
@@ -446,6 +473,7 @@ function refresh() {
   updateBreakControls();
   $('wave').textContent = s.wave;
   $('gems').textContent = s.gems;
+  if(expedition) $('weaponStones').textContent=s.weaponStones;
   $('gold').textContent = s.gold;
   $('life').textContent = s.life;
   $('count').textContent = expedition ? deployedCount()+' / '+capacity() : s.units.length+' / '+capacity();
@@ -510,6 +538,7 @@ function resetRun() {
 }
 let modalBack=null;
 function showModal(html) {
+  cancelFormationDrag();
   modalBack=null;
   $('modal').classList.remove('starter-screen');
   $('close').hidden = false;
@@ -1008,14 +1037,24 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+function combatPower(unit) {
+  return unitAttackDamage(unit)*unitAttackRate(unit)*(unit.type===2 ? 1.375 : 1);
+}
 function autoDeploy() {
   if(state.gameover || saveConflict || choosing() || $('modal').open || !deploymentPads.length || !state.units.length) return;
   const ranked=state.units.map(unit=>({
     unit,
-    power:unitAttackDamage(unit)*unitAttackRate(unit)*(unit.type===2 ? 1.375 : 1)
+    power:combatPower(unit)
   })).sort((a,b)=>b.power-a.power || Number(a.unit.reserve)-Number(b.unit.reserve) ||
     roster[b.unit.type].range-roster[a.unit.type].range || a.unit.id-b.unit.id);
-  const picked=ranked.slice(0,Math.min(capacity(),deploymentPads.length)).map(entry=>entry.unit);
+  const families=new Set();
+  const picked=ranked.filter(({unit})=>{
+    const family=roster[unit.type].family;
+    if(family===undefined) return true;
+    if(families.has(family)) return false;
+    families.add(family);
+    return true;
+  }).slice(0,Math.min(capacity(),deploymentPads.length)).map(entry=>entry.unit);
   const strongest=new Set(picked);
   for(const unit of state.units) {
     if(strongest.has(unit)) continue;
@@ -1042,6 +1081,7 @@ function autoDeploy() {
 }
 function renderFormation() {
   $('autoDeploy').disabled=state.gameover || !state.units.length;
+  $('autoFuse').disabled=state.gameover || state.units.length<2;
   $('reserveTab').textContent=reserveView?'출전 보기':'대기 '+(state.units.length-deployedCount());
   $('reserveTab').setAttribute('aria-pressed',reserveView);
   $('cards').innerHTML=state.units.filter(u=>!!u.reserve===reserveView).map(u=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" draggable="false" referrerpolicy="no-referrer" src="${portraits[u.type]}" style="--portrait-hue:${roster[u.type].hue??0}deg"><span>${roster[u.type].name}</span><strong>${u.reserve?'대기':(deploymentPads[u.slot]?.label ?? (u.slot+1)+'번')} · ★${u.tier}</strong></button>`).join('')
@@ -1064,6 +1104,12 @@ function moveFormation(slot,id=selectedUnit) {
   const unit=state.units.find(item=>item.id===id);
   if(!unit || !deploymentPads[slot] || state.gameover || saveConflict || choosing() || $('modal').open) return false;
   const other=state.units.find(item=>item.slot===slot && item!==unit);
+  const family=roster[unit.type].family;
+  if(unit.reserve && family!==undefined &&
+     state.units.some(item=>!item.reserve && item!==other && roster[item.type].family===family)) {
+    toast('같은 주인공이 이미 출전 중입니다. 그 동료가 있는 칸에 놓아 교체하세요');
+    return false;
+  }
   if(unit.reserve && !other && deployedCount()>=capacity()) {
     toast('출전 한도에 도달했습니다. 배치된 동료와 교체하세요');
     return false;
@@ -1108,8 +1154,10 @@ function installFormationDrag() {
   let drag=null, suppressClick=false;
 
   function start(event) {
+    if(!event.isPrimary || event.button!==0) return;
+    if(drag) finish(null,true);
     suppressClick=false;
-    if(drag || !event.isPrimary || event.button!==0 || state.gameover || saveConflict || choosing() || $('modal').open) return;
+    if(state.gameover || saveConflict || choosing() || $('modal').open) return;
     const surface=event.currentTarget;
     if(surface===stage && command) return;
     const card=event.target.closest('[data-unit], [data-board-unit]');
@@ -1132,13 +1180,22 @@ function installFormationDrag() {
 
   function move(event) {
     if(drag?.pointer!==event.pointerId) return;
+    if(event.pointerType==='mouse' && !(event.buttons&1)) {
+      finish(event,true);
+      return;
+    }
     if(!drag.active) {
       if(Math.hypot(event.clientX-drag.x,event.clientY-drag.y)<8) return;
       const unit=state.units.find(unit=>unit.id===drag.id);
       if(!unit || state.gameover || $('modal').open) {drag=null;return;}
-      drag.active=true;
       suppressClick=true;
-      drag.surface.setPointerCapture(event.pointerId);
+      try {
+        drag.surface.setPointerCapture(event.pointerId);
+      } catch {
+        finish(event,true);
+        return;
+      }
+      drag.active=true;
       command=null;
       selectedUnit=unit.id;
       ghost.src=portraits[unit.type];
@@ -1159,6 +1216,7 @@ function installFormationDrag() {
     const current=drag;
     drag=null;
     if(!current.active) return;
+    if(current.surface.hasPointerCapture(current.pointer)) current.surface.releasePointerCapture(current.pointer);
     ghost.hidden=true;
     layer.classList.remove('dragging');
     layer.querySelector('.drop-target')?.classList.remove('drop-target');
@@ -1171,6 +1229,9 @@ function installFormationDrag() {
 
   for(const surface of [stage,cards]) {
     surface.addEventListener('pointerdown',start);
+    surface.addEventListener('lostpointercapture',event=>{
+      if(event.target===surface) finish(event,true);
+    });
     surface.addEventListener('click',event=>{
       if(!suppressClick || !event.detail) return;
       suppressClick=false;
@@ -1180,8 +1241,11 @@ function installFormationDrag() {
   window.addEventListener('pointermove',move);
   window.addEventListener('pointerup',event=>finish(event));
   window.addEventListener('pointercancel',event=>finish(event,true));
-  window.addEventListener('blur',()=>finish(null,true));
-  window.addEventListener('resize',()=>finish(null,true));
+  cancelFormationDrag=()=>finish(null,true);
+  window.addEventListener('blur',cancelFormationDrag);
+  window.addEventListener('resize',cancelFormationDrag);
+  window.addEventListener('pagehide',cancelFormationDrag);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden) cancelFormationDrag();});
 }
 function ingredients(recipe,unitId=null) {
   return [recipe.first,recipe.second].map(type=>{
@@ -1195,9 +1259,23 @@ function canUseRecipe(recipe) {
   const kind=ZundaExpedition.fusionKind(recipe.type);
   return ZundaExpedition.fusionKind(recipe.first)===kind && ZundaExpedition.fusionKind(recipe.second)===kind;
 }
-function fuse(index,{filter='all',search='',species='all',unitId=null}={}) {
+function autoFuse() {
+  if(state.gameover || saveConflict || choosing() || $('modal').open) return;
+  let best=null;
+  for(const [index,recipe] of ZundaExpedition.fusionRecipes.entries()) {
+    if(!canUseRecipe(recipe)) continue;
+    const [first,second]=ingredients(recipe);
+    if(!first || !second) continue;
+    const power=combatPower({type:recipe.type,tier:Math.min(first.tier,second.tier)});
+    const gain=power-combatPower(first)-combatPower(second);
+    if(!best || gain>best.gain || (gain===best.gain && power>best.power)) best={index,gain,power};
+  }
+  if(best) fuse(best.index,{stayInBattle:true});
+  else toast('현재 보유 동료로 조합할 수 있는 조합이 없습니다');
+}
+function fuse(index,{filter='all',search='',species='all',unitId=null,stayInBattle=false}={}) {
   const recipe=ZundaExpedition.fusionRecipes[index];
-  if(!canUseRecipe(recipe) || state.gameover) return;
+  if(!canUseRecipe(recipe) || state.gameover || saveConflict || choosing()) return;
   const [first,second]=ingredients(recipe,unitId);
   if(!first || !second) return;
   const anchor=first.reserve && !second.reserve ? second : first;
@@ -1211,7 +1289,7 @@ function fuse(index,{filter='all',search='',species='all',unitId=null}={}) {
   announce(result);
   refresh();
   persist();
-  if(!saveConflict) {
+  if(!saveConflict && !stayInBattle) {
     if(unitId===null) showRecipes({filter,search,species,result});
     else showUnitRecipes(evolvedId,result);
     $('recipeStatus').focus();
@@ -1395,27 +1473,27 @@ function benchUnit(id) {
   refresh();
   persist();
 }
-const gearCost=[6,11];
+const gearCost=[3,5];
 const ownsGearFamily=family=>state.units.some(unit=>roster[unit.type].family===family);
 function gearUpgrade(family) {
   const rank=state.gear[family] ?? 0;
   const cost=gearCost[rank];
-  return {rank,cost,available:cost!==undefined && state.gems>=cost};
+  return {rank,cost,available:cost!==undefined && state.weaponStones>=cost};
 }
 function upgradeGear(family) {
   if(state.gameover || saveConflict || choosing() ||
      !ZundaExpedition.rookies.some(hero=>hero.family===family) || !ownsGearFamily(family)) return false;
   const {rank,cost,available}=gearUpgrade(family);
   if(!available) return false;
-  state.gems-=cost;
+  state.weaponStones-=cost;
   state.gear[family]=rank+1;
   return true;
 }
 function renderUnitWeapon(family,gear) {
   const {rank,cost,available}=gearUpgrade(family);
   return `<section class="unit-weapon" aria-label="전용 무기">
-    <div><strong>${gear.name} +${rank}</strong><small>${gear.detail}</small></div>
-    <button id="upgradeUnitWeapon" type="button" ${available?'':'disabled'}>${cost===undefined?'최대 강화':(available?'무기 강화':'보석 부족')+' · ◆ '+cost}</button>
+    <div><strong>${gear.name} +${rank}</strong><small>${gear.detail}</small><small>보유 연마석 ${state.weaponStones}개</small></div>
+    <button id="upgradeUnitWeapon" type="button" ${available?'':'disabled'}>${cost===undefined?'최대 강화':(available?'무기 강화':'연마석 부족')+' · '+cost+'개'}</button>
   </section>`;
 }
 function showMarket() {
@@ -1490,6 +1568,7 @@ if(expedition) {
     }
   });
   $('autoDeploy').onclick=autoDeploy;
+  $('autoFuse').onclick=autoFuse;
   $('reserveTab').onclick=()=>{reserveView=!reserveView;selectedUnit=null;refresh();};
   $('placement').addEventListener('click',event=>{
     const button=event.target.closest('[data-pad]');
@@ -1552,15 +1631,19 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.9',
-  title:'가로 모드',
+  version:'1.10',
+  title:'입구 재배치, 자동 조합과 연마석',
   notes:[
-    '휴대폰을 가로로 돌리거나 브라우저를 넓히면 전장은 왼쪽, 동료와 조작 버튼은 오른쪽에 표시됩니다.',
-    '전투 중에 화면을 돌려도 동료 배치와 적 진행이 이어집니다.'
+    '다음 웨이브가 시작되면 출전 동료는 현재 입구 위쪽 칸부터 재배치됩니다.',
+    '자동 조합을 누를 때마다 보유 재료로 가능한 조합 중 전투력 이득이 가장 큰 한 건을 실행합니다.',
+    '네 주인공은 진화 단계와 관계없이 각각 한 명만 출전합니다. 여분은 대기열에 보관할 수 있습니다.',
+    '전용 무기는 연마석으로 강화합니다. 일반 웨이브에서 1개, 보스 웨이브에서 2개를 받습니다.',
+    '드래그 도중 화면이 바뀌거나 입력이 끊겨도 동료 그림이 화면에 남지 않습니다.'
   ]
 };
 const releaseHistory = [
   release,
+  {version:'1.9',title:'가로 모드',notes:['가로 화면에서 전장은 왼쪽, 동료와 조작 버튼은 오른쪽에 표시되며 화면을 돌려도 전투 진행과 배치가 유지됩니다.']},
   {version:'1.8',title:'동료 성장과 간결해진 전투 화면',notes:['동료 메뉴에 성장과 배치를 모으고, 네 주인공의 5단 진화와 전용 공격 자세를 추가했습니다. 신규 동료는 입구 위쪽에 먼저 배치됩니다.']},
   {version:'1.7',title:'전투력 기준 자동 배치',notes:['출전·대기 동료 중 전투력이 높은 순으로 배치합니다. 계속 출전하는 동료는 현재 자리를 유지합니다.']},
   {version:'1.6',title:'전장 드래그 배치와 동료 진화 메뉴',notes:['전장 동료를 드래그해 배치하고, 탭하면 조합·진화가 열립니다. 일반 웨이브 보급은 자동으로 받습니다.']},
