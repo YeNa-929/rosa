@@ -64,6 +64,8 @@ let bossWarningWave=0;
 const breakWindow=3.6;
 const keepPhase = phase => expedition && ['draft','reward'].includes(phase) ? phase : 'wave';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let combatScaleX=1, combatScaleY=1;
+const combatDistance=(x,y)=>Math.hypot(x/combatScaleX,y/combatScaleY);
 let terrain, path, lengths, pathLength, rosterKey, rosterOver, nextRefresh = 0, spellFlash = 0;
 const SAVE=expedition ? 'zunda-expedition-v1' : 'wonderland-defense-v2';let state, lastStored=null, saveConflict=false, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0;
 const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false,targetPriority:'lead',tactics:2,shield:0,expansions:0,shopOffers:[],shopCount:0,contract:'none',gear:{}});
@@ -195,6 +197,8 @@ function resize() {
   const scaleX = rect.width / W, scaleY = rect.height / H;
   W = rect.width;
   H = rect.height;
+  // Keep combat distances and route progress independent of the display aspect ratio.
+  if(expedition) {combatScaleX=W/390;combatScaleY=H/320;}
   const d = Math.min(devicePixelRatio || 1, 2);
   canvas.width = Math.round(W * d);
   canvas.height = Math.round(H * d);
@@ -214,11 +218,12 @@ function resize() {
     reconcileSlots();
     renderPads();
   }
-  lengths = path.slice(1).map(([x,y], i) => Math.hypot(x-path[i][0], y-path[i][1]));
+  lengths = path.slice(1).map(([x,y], i) => combatDistance(x-path[i][0], y-path[i][1]));
   pathLength = lengths.reduce((sum, value) => sum + value, 0);
   paintTerrain(d);
   if(slowField) {slowField.x*=scaleX;slowField.y*=scaleY;}
   for (const m of mobs) [m.x,m.y] = at(m.t);
+  for(const unit of state.units) if(unit.moveFrom) {unit.moveFrom.x*=scaleX;unit.moveFrom.y*=scaleY;}
   for (const item of [...bullets, ...particles]) {
     item.x *= scaleX;
     item.y *= scaleY;
@@ -588,7 +593,7 @@ function hit(m, damage, source) {
   }
   if(effect==='chain' || effect==='burst') {
     const radius=unit.splashRadius ?? (effect==='chain' ? 95 : 74);
-    const distance=other=>Math.hypot(other.x-m.x,other.y-m.y);
+    const distance=other=>combatDistance(other.x-m.x,other.y-m.y);
     const neighbors=mobs.filter(other=>other!==m && other.hp>0 && distance(other)<radius);
     if(unit.chainCount) neighbors.sort((a,b)=>distance(a)-distance(b));
     const targets=effect==='chain' ? neighbors.slice(0,unit.chainCount ?? 2) : neighbors;
@@ -596,7 +601,7 @@ function hit(m, damage, source) {
   }
   if (source.type === 4) {
     for (const other of mobs) {
-      if (other !== m && Math.hypot(other.x-m.x,other.y-m.y)<52) {
+      if (other !== m && combatDistance(other.x-m.x,other.y-m.y)<52) {
         damageMob(other,damage*.35,source.color);
       }
     }
@@ -630,7 +635,7 @@ function interrupt() {
   if(perfect) {
     state.gems++;
     for(const other of mobs) {
-      if(other!==enemy && Math.hypot(other.x-enemy.x,other.y-enemy.y)<94) {
+      if(other!==enemy && combatDistance(other.x-enemy.x,other.y-enemy.y)<94) {
         damageMob(other,enemy.max*.09,'#ffc47f',.42,26);
       }
     }
@@ -676,9 +681,9 @@ function fireCommand(event) {
   state.tactics--;
   if(command==='bomb') {
     for(const enemy of mobs) {
-      if(enemy.hp>0 && Math.hypot(enemy.x-x,enemy.y-y)<87) damageMob(enemy,enemy.max*.28,'#ffc180',.46,32);
+      if(enemy.hp>0 && combatDistance(enemy.x-x,enemy.y-y)<87) damageMob(enemy,enemy.max*.28,'#ffc180',.46,32);
     }
-    particles.push({x,y,life:.67,duration:.67,radius:87,color:'#ffc180'});
+    particles.push({x,y,life:.67,duration:.67,radius:87,color:'#ffc180',area:true});
     fieldImpact=.23;
     beep(180,.16);
   } else {
@@ -697,12 +702,12 @@ function supportPulse(m,dt) {
   let healed=false;
   for(const other of mobs) {
     if(other===m || other.hp<=0 || other.hp>=other.max || other.boss || other.kind==='mender' ||
-        (other.healUntil??0)>visualTime || Math.hypot(m.x-other.x,m.y-other.y)>83) continue;
+        (other.healUntil??0)>visualTime || combatDistance(m.x-other.x,m.y-other.y)>83) continue;
     other.hp=Math.min(other.max,other.hp+other.max*.18);
     other.healUntil=visualTime+1.5;
     healed=true;
   }
-  if(healed) particles.push({x:m.x,y:m.y,life:.43,duration:.43,radius:80,color:'#b3ff91'});
+  if(healed) particles.push({x:m.x,y:m.y,life:.43,duration:.43,radius:83,color:'#b3ff91',area:true});
 }
 function moveEnemy(m,dt) {
   supportPulse(m,dt);
@@ -718,7 +723,7 @@ function moveEnemy(m,dt) {
       beep(110,.24);
     }
   } else {
-    const fieldSlow=slowField && Math.hypot(m.x-slowField.x,m.y-slowField.y)<81 ? .43 : 1;
+    const fieldSlow=slowField && combatDistance(m.x-slowField.x,m.y-slowField.y)<81 ? .43 : 1;
     m.t+=m.speed*Math.min(m.slowFactor,fieldSlow)*dt;
     if(m.warded && m.t>=m.rearm && m.t<.92) {
       m.breakTime=breakWindow;
@@ -764,8 +769,8 @@ if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&stat
   } else { spawn();state.spawnTimer=expedition && state.wave>=5 && state.spawned%5!==0 ? Math.max(.21,.64-state.wave*.014) : Math.max(.26,.78-state.wave*.013)}}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
 else{state.breakTimer-=dt;if(state.breakTimer<=0){state.wave++;state.spawned=0;state.spawnTimer=.5;state.phase='wave';announce('🌙 WAVE '+state.wave);persist()}}
 for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}moveEnemy(m,dt);if(m.t>=1){m.hp=-1;const loss=m.boss?(expedition ? state.life : 5):m.warded?8:1;if(expedition && !m.boss && state.shield>0){state.shield--;announce('방어막이 돌파를 막았습니다');}else state.life-=loss;if(state.life<=0){state.life=0;end();return}}}
-for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)continue;const t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(Math.hypot(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=unitAttackDamage(u)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/unitAttackRate(u)}}
-for(const b of bullets){if(b.target.hp<=0){b.dead=true;continue}const dx=b.target.x-b.x,dy=b.target.y-b.y,d=Math.hypot(dx,dy);if(d<=Math.max(13,b.speed*dt)){hit(b.target,b.damage,b);b.dead=true}else{const step=Math.min(d,b.speed*dt);b.x+=dx/d*step;b.y+=dy/d*step}}
+for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)continue;const t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(combatDistance(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=unitAttackDamage(u)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/unitAttackRate(u)}}
+for(const b of bullets){if(b.target.hp<=0){b.dead=true;continue}const dx=b.target.x-b.x,dy=b.target.y-b.y,d=combatDistance(dx,dy);if(d<=Math.max(13,b.speed*dt)){hit(b.target,b.damage,b);b.dead=true}else{const step=Math.min(d,b.speed*dt);b.x+=dx/d*step;b.y+=dy/d*step}}
 bullets=bullets.filter(b=>!b.dead);mobs=mobs.filter(m=>m.hp>0);particles.forEach(p=>p.life-=dt);particles=particles.filter(p=>p.life>0);
 saveTimer+=dt;if(saveTimer>12){saveTimer=0;persist()}}
 let guardianBounds=[];
@@ -781,14 +786,15 @@ function drawGuardians(motion) {
       if(progress>=1) u.moveFrom=null;
     }
     const unit=roster[u.type], color=unit.color;
-    const size=expedition ? Math.min(W*.094,H*.11,43) : Math.min(W*.111,H*.119,49);
+    const size=expedition ? Math.min(W*.106,H*.127,56) : Math.min(W*.111,H*.119,49);
     const attackAge=visualTime-(u.fired ?? -1);
     const shot = Math.max(0,1-attackAge/.27);
     const arrival = Math.max(0, 1-(visualTime-(u.born ?? -1))/.4);
     const kick = motion && shot ? -Math.sin(shot*Math.PI)*7 : 0;
     if(u.id===selectedUnit) {
       g.beginPath();
-      g.arc(x,y,roster[u.type].range*(1+(u.tier-1)*.08),0,Math.PI*2);
+      const range=unit.range*(1+(u.tier-1)*.08);
+      g.ellipse(x,y,range*combatScaleX,range*combatScaleY,0,0,Math.PI*2);
       g.fillStyle=color+'11';
       g.fill();
       g.strokeStyle=color+'60';
@@ -955,7 +961,8 @@ function drawEffects(motion) {
     g.fillStyle = p.color;
     g.lineWidth = 1.5;
     g.beginPath();
-    g.arc(p.x,p.y,3+p.radius*progress,0,Math.PI*2);
+    const radius=3+p.radius*progress;
+    g.ellipse(p.x,p.y,radius*(p.area ? combatScaleX : 1),radius*(p.area ? combatScaleY : 1),0,0,Math.PI*2);
     g.stroke();
     for (let i=0;i<6;i++) {
       const angle = i*Math.PI/3;
@@ -973,7 +980,7 @@ function draw() {
   const motion = !reducedMotion.matches && !state.paused && !$('modal').open;
   if(slowField) {
     g.beginPath();
-    g.arc(slowField.x,slowField.y,81,0,Math.PI*2);
+    g.ellipse(slowField.x,slowField.y,81*combatScaleX,81*combatScaleY,0,0,Math.PI*2);
     g.fillStyle='#80aaff33';g.fill();g.strokeStyle='#95d7ffc0';g.lineWidth=2;g.stroke();
   }
   guardianBounds=drawGuardians(motion);
@@ -1174,6 +1181,7 @@ function installFormationDrag() {
   window.addEventListener('pointerup',event=>finish(event));
   window.addEventListener('pointercancel',event=>finish(event,true));
   window.addEventListener('blur',()=>finish(null,true));
+  window.addEventListener('resize',()=>finish(null,true));
 }
 function ingredients(recipe,unitId=null) {
   return [recipe.first,recipe.second].map(type=>{
@@ -1544,18 +1552,16 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.8',
-  title:'동료 성장과 간결해진 전투 화면',
+  version:'1.9',
+  title:'가로 모드',
   notes:[
-    '동료를 눌러 능력치를 비교하고, 별 훈련·같은 동료 별 합성·전용 무기 강화·조합을 한곳에서 할 수 있습니다.',
-    '처음 영입하거나 새로 출전하는 동료는 비어 있는 입구 위쪽 칸부터 배치합니다.',
-    '웨이브 보급 내역을 전장 아래에 표시하고, 주요 전투 버튼과 정찰을 찾기 쉽게 정리했습니다.',
-    '전투 메뉴의 간식 폭풍을 제거했습니다. 도감은 도움말에, 새 게임은 타이틀에 있습니다.',
-    '네 주인공은 기본형부터 5단계까지 진화하며, 모든 단계에서 전용 공격 자세가 나옵니다.'
+    '휴대폰을 가로로 돌리거나 브라우저를 넓히면 전장은 왼쪽, 동료와 조작 버튼은 오른쪽에 표시됩니다.',
+    '전투 중에 화면을 돌려도 동료 배치와 적 진행이 이어집니다.'
   ]
 };
 const releaseHistory = [
   release,
+  {version:'1.8',title:'동료 성장과 간결해진 전투 화면',notes:['동료 메뉴에 성장과 배치를 모으고, 네 주인공의 5단 진화와 전용 공격 자세를 추가했습니다. 신규 동료는 입구 위쪽에 먼저 배치됩니다.']},
   {version:'1.7',title:'전투력 기준 자동 배치',notes:['출전·대기 동료 중 전투력이 높은 순으로 배치합니다. 계속 출전하는 동료는 현재 자리를 유지합니다.']},
   {version:'1.6',title:'전장 드래그 배치와 동료 진화 메뉴',notes:['전장 동료를 드래그해 배치하고, 탭하면 조합·진화가 열립니다. 일반 웨이브 보급은 자동으로 받습니다.']},
   {version:'1.5',title:'인간형과 몬스터 조합',notes:['같은 유형끼리 조합하도록 정리하고 새 인간형 동료를 추가했습니다. 스타팅 동료 공격 자세와 자동 소환 결과 표시도 추가됐습니다.']},
