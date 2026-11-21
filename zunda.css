@@ -376,27 +376,26 @@ body[data-expedition] {
 
 .battlefield-layout, .battle-sidebar { display:contents; }
 
-@media (orientation:landscape) and (min-width:568px) {
-  [data-expedition] #game {
+body[data-expedition].landscape-layout #game {
     display:grid;
     grid-template-columns:minmax(0,1fr) clamp(220px,29vw,350px);
     grid-template-rows:auto auto minmax(0,1fr);
     width:min(100%,1600px);
     height:100dvh;
   }
-  [data-expedition] #game > header,
-  [data-expedition] #saveNotice { grid-column:1 / -1; }
-  [data-expedition] #game > header {
+  body[data-expedition].landscape-layout #game > header,
+body[data-expedition].landscape-layout #saveNotice { grid-column:1 / -1; }
+body[data-expedition].landscape-layout #game > header {
     grid-row:1;
     padding-block:3px;
   }
-  [data-expedition] #game > header h1 {
+body[data-expedition].landscape-layout #game > header h1 {
     display:flex;
     align-items:baseline;
     gap:8px;
   }
-  [data-expedition] #saveNotice { grid-row:2; }
-  .battlefield-layout {
+body[data-expedition].landscape-layout #saveNotice { grid-row:2; }
+body[data-expedition].landscape-layout .battlefield-layout {
     display:grid;
     grid-row:3;
     grid-column:1;
@@ -405,8 +404,8 @@ body[data-expedition] {
     min-width:0;
     background:#17243c;
   }
-  [data-expedition] #stage { min-height:0; }
-  .battle-sidebar {
+body[data-expedition].landscape-layout #stage { min-height:0; }
+body[data-expedition].landscape-layout .battle-sidebar {
     display:flex;
     flex-direction:column;
     grid-row:3;
@@ -418,18 +417,17 @@ body[data-expedition] {
     border-inline-start:1px solid #526989;
     background:#1b2236;
   }
-  .battle-sidebar footer { flex:1; }
-  [data-expedition] .actions button { min-height:46px; }
-  .battle-sidebar .section-title { padding-block:2px; }
-}
+body[data-expedition].landscape-layout .battle-sidebar footer { flex:1; }
+body[data-expedition].landscape-layout .actions button { min-height:46px; }
+body[data-expedition].landscape-layout .battle-sidebar .section-title { padding-block:2px; }
 
-@media (orientation:landscape) and (max-height:430px) {
-  [data-expedition] #game > header h1 small { display:none; }
-  .battle-sidebar .section-title button { font-size:10px; }
+@media (max-height:430px) {
+  .landscape-layout #game > header h1 small { display:none; }
+  .landscape-layout .battle-sidebar .section-title button { font-size:10px; }
 
-  .battle-sidebar #cards { min-height:54px; }
-  .battle-sidebar .formation-card { min-height:44px; }
-  .battle-sidebar .formation-card img { height:36px; }
+  .landscape-layout .battle-sidebar #cards { min-height:54px; }
+  .landscape-layout .battle-sidebar .formation-card { min-height:44px; }
+  .landscape-layout .battle-sidebar .formation-card img { height:36px; }
   .starter-screen #modalTitle { font-size:27px; }
   .starter-screen #modalTitle + p { margin-bottom:5px; }
 }
@@ -448,42 +446,39 @@ body[data-expedition] {
 #fullscreen[aria-pressed=true] { border-color:#c9e898; color:#e7f6b7; }
 @media (max-width:360px) { [data-expedition] header h1 small { display:none; } }
 
-@media (orientation:portrait), (max-width:567px) {
-  [data-expedition].fit-screen #game {
+body[data-expedition].fit-screen:not(.landscape-layout) #game {
     display:grid;
     grid-template-rows:auto auto minmax(0,1fr) auto;
     height:100dvh;
   }
-  .fit-screen #saveNotice { grid-row:2; }
-  .fit-screen .battlefield-layout {
+body[data-expedition].fit-screen:not(.landscape-layout) #saveNotice { grid-row:2; }
+body[data-expedition].fit-screen:not(.landscape-layout) .battlefield-layout {
     grid-row:3;
     min-height:0;
     display:grid;
     grid-template-rows:auto auto minmax(0,1fr) auto;
   }
-  .fit-screen #stage { min-height:0; }
-  .fit-screen .battle-sidebar { grid-row:4; display:block; }
-  .fit-screen #boss { padding-block:2px; }
-  .fit-screen footer {
+body[data-expedition].fit-screen:not(.landscape-layout) #stage { min-height:0; }
+body[data-expedition].fit-screen:not(.landscape-layout) .battle-sidebar { grid-row:4; display:block; }
+body[data-expedition].fit-screen:not(.landscape-layout) #boss { padding-block:2px; }
+body[data-expedition].fit-screen:not(.landscape-layout) footer {
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:4px;
     padding:4px;
   }
-  .fit-screen footer > div { margin:0; gap:3px; }
-  .fit-screen footer button { min-height:44px; padding-inline:2px; font-size:10px; }
-  .fit-screen .battle-sidebar .zunda-credit { display:none; }
-  .fit-screen #waveSupply, .fit-screen #autoRecruitFeed { font-size:10px; }
-}
-@media (orientation:landscape) and (min-width:568px) {
-  .fit-screen .battle-sidebar footer {
+body[data-expedition].fit-screen:not(.landscape-layout) footer > div { margin:0; gap:3px; }
+body[data-expedition].fit-screen:not(.landscape-layout) footer button { min-height:44px; padding-inline:2px; font-size:10px; }
+body[data-expedition].fit-screen:not(.landscape-layout) .battle-sidebar .zunda-credit { display:none; }
+body[data-expedition].fit-screen:not(.landscape-layout) #waveSupply,
+body[data-expedition].fit-screen:not(.landscape-layout) #autoRecruitFeed { font-size:10px; }
+body[data-expedition].fit-screen.landscape-layout .battle-sidebar footer {
     display:grid;
     grid-template-columns:1fr 1fr;
     align-content:start;
     gap:4px;
     padding:4px;
   }
-  .fit-screen .battle-sidebar footer > div { margin:0; gap:3px; }
-  .fit-screen .battle-sidebar footer button { min-height:44px; padding-inline:2px; font-size:10px; }
-  .fit-screen .battle-sidebar .zunda-credit { display:none; }
-}
+body[data-expedition].fit-screen.landscape-layout .battle-sidebar footer > div { margin:0; gap:3px; }
+body[data-expedition].fit-screen.landscape-layout .battle-sidebar footer button { min-height:44px; padding-inline:2px; font-size:10px; }
+body[data-expedition].fit-screen.landscape-layout .battle-sidebar .zunda-credit { display:none; }

@@ -387,10 +387,12 @@ function spawn() {
   const earlyPressure=expedition && state.wave<20
     ? 1+Math.min((state.wave-1)*.03,.18,.09+(19-state.wave)*.025)
     : 1;
-  const hp=base*growth*(state.elite?1.4:1)*(model?.hp ?? 1)*earlyPressure;
+  const pressure=expedition ? Math.min(.42,Math.max(0,state.wave-4)*.015) : 0;
+  const bossPressure=expedition && boss ? 1.22 : 1;
+  const hp=base*growth*(state.elite?1.4:1)*(model?.hp ?? 1)*earlyPressure*(1+pressure)*bossPressure;
   const m={id:uid++,t:0,hp,max:hp,boss,kind,model,armor:(model?.armor??0)+(rules?.armor??0),slow:0,slowFactor:1,
     step:0,lastStep:0,facing:1,healTimer:1.1,
-    speed:(expedition ? (boss?.026:.047) : (boss?.032:.061))*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1)*(rules?.speed??1),x:0,y:0};
+    speed:(expedition ? (boss?.026:.047) : (boss?.032:.061))*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1)*(rules?.speed??1)*(1+pressure*.2),x:0,y:0};
   [m.x,m.y]=at(0);
   mobs.push(m);
   state.spawned++;
@@ -1480,11 +1482,27 @@ if(expedition) {
   $('reloadSave').onclick=()=>location.reload();
   $('tactics').onclick=openCommands;
   const screenButton=$('fullscreen');
+  const setLandscape=landscape=>document.body.classList.toggle('landscape-layout',landscape);
+  const fitEnabled=()=>document.body.classList.contains('fit-screen');
+  function syncViewportLayout() {
+    if(!fitEnabled()) setLandscape(innerWidth>=568 && innerWidth>innerHeight);
+  }
+  function syncDeviceLayout() {
+    const orientation=screen.orientation?.type;
+    if(!fitEnabled()) return syncViewportLayout();
+    if(orientation) setLandscape(orientation.startsWith('landscape'));
+    else if(typeof window.orientation==='number') setLandscape(Math.abs(window.orientation)===90);
+  }
   function fitScreen(enabled) {
     document.body.classList.toggle('fit-screen',enabled);
     screenButton.setAttribute('aria-pressed',enabled);
     screenButton.setAttribute('aria-label',enabled?'전체 화면 종료':'전체 화면');
+    if(!enabled) syncViewportLayout();
   }
+  syncViewportLayout();
+  window.addEventListener('resize',syncViewportLayout);
+  screen.orientation?.addEventListener('change',syncDeviceLayout);
+  if(!screen.orientation) window.addEventListener('orientationchange',syncDeviceLayout);
   screenButton.onclick=async()=>{
     if(document.body.classList.contains('fit-screen')) {
       fitScreen(false);
@@ -1570,14 +1588,13 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.12',
-  title:'끊김 없는 전투와 전체 화면',
-  notes:['전투 중 동료 성장, 조합, 보급소를 열어도 전투가 계속됩니다. 웨이브마다 자동으로 보급을 받습니다.',
-    '돌진 저지와 무적 방패를 없앴습니다. 보스와 파수대도 일반 공격으로 처치할 수 있습니다.',
-    '전체 화면 버튼으로 전장과 조작부를 화면에 맞출 수 있습니다.']
+  version:'1.13',
+  title:'전체 화면 방향 수정과 난이도 상향',
+  notes:['전체 화면에서는 버튼을 눌러 뷰포트가 바뀌어도 현재 방향을 유지합니다.','중후반 적의 체력과 이동 속도를 높이고 보스의 체력을 상향했습니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.12',title:'끊김 없는 전투와 전체 화면',notes:['전투 메뉴를 열어도 전투가 계속되고, 돌진 저지와 무적 방패를 제거했습니다.']},
   {version:'1.11',title:'넓어진 전장과 한 줄 동료 메뉴',notes:['동료 버튼을 한 줄에 맞추고 전장과 렌더링 해상도를 개선했습니다.']},
   {version:'1.10',title:'입구 재배치, 자동 조합과 연마석',notes:['웨이브마다 입구로 다시 배치하고, 자동 조합은 한 번 누를 때 한 건을 실행합니다. 무기 강화에는 연마석을 쓰며, 주인공은 각각 한 명만 출전합니다. 드래그 중단도 처리합니다.']},
   {version:'1.9',title:'가로 모드',notes:['가로 화면에서 전장은 왼쪽, 동료와 조작 버튼은 오른쪽에 표시되며 화면을 돌려도 전투 진행과 배치가 유지됩니다.']},
