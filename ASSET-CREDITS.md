@@ -3,7 +3,7 @@
 이 게임은 무료 비영리 팬게임입니다.
 
 - **즌다 프로젝트 공식 일러스트** — SSS LLC., 캐릭터 디자인 江戸村ににこ. [배포 페이지](https://zunko.jp/con_illust.html) · [비영리 이용 가이드라인](https://zunko.jp/guideline.html). 투명 여백을 정리하고 WebP로 변환했습니다.
-- **추가 영입 캐릭터 픽셀 그래픽** — Clint Bellanger, [Tiny Creatures](https://opengameart.org/content/tiny-creatures), [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). 선택한 24개의 원본 스프라이트는 `guest-art.js`에 포함됩니다.
+- **추가 영입 캐릭터 24종** — 이 프로젝트용으로 새로 만든 투명 배경 애니메이션풍 이미지입니다. 이전 버전의 CC0 픽셀 스프라이트를 교체했습니다.
 - **전장 배경, 적, 조합체 원화** — 이 프로젝트용으로 새로 만든 생성 이미지입니다. 조합체는 원화의 실루엣과 색상 변형을 사용합니다.
 
 ## 공식 일러스트 원본

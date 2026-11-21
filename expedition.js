@@ -86,7 +86,8 @@ const ZundaExpedition = (() => {
   };
 
   function kind(wave, spawned, boss) {
-    if(boss) return wave===4?'bastion':wave===8?'herald':wave===12?'eclipse':'sentinel';
+    if(boss) return ['bastion','herald','eclipse','sentinel'][(wave/4-1)%4];
+    if(wave>16 && spawned%3===2) return 'wraith';
     if(wave>=7 && spawned%5===3) return 'wraith';
     if(wave>=3 && spawned%4===2) return 'shell';
     if(wave>=2 && spawned%3===1) return 'runner';
@@ -163,7 +164,7 @@ const ZundaExpedition = (() => {
     {name:'일식 성채',top:'#291822',land:'#543640',edge:'#a57469',road:'#60454c',light:'#ffbe88',stone:'#87554f'},
     {name:'월광의 샘',top:'#101f38',land:'#2a5368',edge:'#558f9f',road:'#41657a',light:'#9ef7f4',stone:'#51798c'}
   ];
-  function region(wave) { return regions[Math.min(regions.length-1,Math.floor((wave-1)/4))]; }
+  function region(wave) { return regions[Math.floor((wave-1)/4)%regions.length]; }
 
   function terrain(width,height,path,dpr,wave,onLoad) {
     const canvas=document.createElement('canvas');
