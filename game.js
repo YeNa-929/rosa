@@ -22,6 +22,7 @@ const cast = [
   {type:30,name:'간사이 시노비',slug:'shinobi',color:'#c9bbff',dmg:20,rate:1.42,range:141,effect:'execute',skill:'기습 · 체력이 낮은 적에 추가 피해'},
   {type:31,name:'안코몬',slug:'ankomon',color:'#f1a3c4',dmg:24,rate:1.07,range:151,effect:'chain',skill:'단팥 번개 · 인접한 적 두 명 타격'}
 ].concat([{"type":100,"name":"밤의 뱀파이어","tile":3,"effect":"pierce","color":"#8bd9f7","dmg":18,"rate":0.87,"range":134,"skill":"장갑 무시"},{"type":101,"name":"흑요석 메두사","tile":8,"effect":"frost","color":"#b1b6ff","dmg":21,"rate":1.04,"range":141,"skill":"적 이동 속도 감소"},{"type":102,"name":"반딧불 요정","tile":13,"effect":"chain","color":"#adf0c4","dmg":24,"rate":1.21,"range":148,"skill":"인접 적 연쇄 타격"},{"type":103,"name":"서리 웬디고","tile":16,"effect":"execute","color":"#ff9ca4","dmg":27,"rate":1.38,"range":155,"skill":"약해진 적 추가 피해"},{"type":104,"name":"청철 기사","tile":18,"effect":"burst","color":"#ffd899","dmg":30,"rate":0.87,"range":162,"skill":"범위 폭발"},{"type":105,"name":"황소 투사","tile":21,"effect":"pierce","color":"#8bd9f7","dmg":33,"rate":1.04,"range":134,"skill":"장갑 무시"},{"type":106,"name":"초원의 궁기병","tile":22,"effect":"frost","color":"#b1b6ff","dmg":18,"rate":1.21,"range":141,"skill":"적 이동 속도 감소"},{"type":107,"name":"달빛 늑대인간","tile":25,"effect":"chain","color":"#adf0c4","dmg":21,"rate":1.38,"range":148,"skill":"인접 적 연쇄 타격"},{"type":108,"name":"산호 인어","tile":28,"effect":"execute","color":"#ff9ca4","dmg":24,"rate":0.87,"range":155,"skill":"약해진 적 추가 피해"},{"type":109,"name":"푸른 비룡","tile":32,"effect":"burst","color":"#ffd899","dmg":27,"rate":1.04,"range":162,"skill":"범위 폭발"},{"type":110,"name":"불꽃 용","tile":34,"effect":"pierce","color":"#8bd9f7","dmg":30,"rate":1.21,"range":134,"skill":"장갑 무시"},{"type":111,"name":"빙설 거인","tile":44,"effect":"frost","color":"#b1b6ff","dmg":33,"rate":1.38,"range":141,"skill":"적 이동 속도 감소"},{"type":112,"name":"불꽃 정령","tile":46,"effect":"chain","color":"#adf0c4","dmg":18,"rate":0.87,"range":148,"skill":"인접 적 연쇄 타격"},{"type":113,"name":"빙결 정령","tile":50,"effect":"execute","color":"#ff9ca4","dmg":21,"rate":1.04,"range":155,"skill":"약해진 적 추가 피해"},{"type":114,"name":"별뿔 유니콘","tile":52,"effect":"burst","color":"#ffd899","dmg":24,"rate":1.21,"range":162,"skill":"범위 폭발"},{"type":115,"name":"화염 요정","tile":56,"effect":"pierce","color":"#8bd9f7","dmg":27,"rate":1.38,"range":134,"skill":"장갑 무시"},{"type":116,"name":"황혼 마법사","tile":66,"effect":"frost","color":"#b1b6ff","dmg":30,"rate":0.87,"range":141,"skill":"적 이동 속도 감소"},{"type":117,"name":"석상 가고일","tile":70,"effect":"chain","color":"#adf0c4","dmg":33,"rate":1.04,"range":148,"skill":"인접 적 연쇄 타격"},{"type":118,"name":"비취 슬라임","tile":85,"effect":"execute","color":"#ff9ca4","dmg":18,"rate":1.21,"range":155,"skill":"약해진 적 추가 피해"},{"type":119,"name":"황금 고양이","tile":95,"effect":"burst","color":"#ffd899","dmg":21,"rate":1.38,"range":162,"skill":"범위 폭발"},{"type":120,"name":"황야 그리핀","tile":105,"effect":"pierce","color":"#8bd9f7","dmg":24,"rate":0.87,"range":134,"skill":"장갑 무시"},{"type":121,"name":"맹독 히드라","tile":111,"effect":"frost","color":"#b1b6ff","dmg":27,"rate":1.04,"range":141,"skill":"적 이동 속도 감소"},{"type":122,"name":"숲의 올빼미곰","tile":118,"effect":"chain","color":"#adf0c4","dmg":30,"rate":1.21,"range":148,"skill":"인접 적 연쇄 타격"},{"type":123,"name":"철의 골렘","tile":129,"effect":"execute","color":"#ff9ca4","dmg":33,"rate":1.38,"range":155,"skill":"약해진 적 추가 피해"}]);
+if(expedition) cast.unshift(...ZundaExpedition.rookies);
 const expansionArt = expedition ? ZundaExpedition.images() : null;
 const castByType = new Map(cast.map(character=>[character.type,character]));
 if(expedition) {
@@ -31,7 +32,7 @@ if(expedition) {
 const portraits = roster.map((_,i) => {
   if(!expedition) return CourtArt.portrait(i);
   const character=castByType.get(i);
-  return character ? (character.slug ? 'assets/cast/'+character.slug+'.webp' : 'assets/allies/'+character.tile+'.webp') : expansionArt.familiars[i];
+  return character ? (character.portrait ?? (character.slug ? 'assets/cast/'+character.slug+'.webp' : 'assets/allies/'+character.tile+'.webp')) : expansionArt.familiars[i];
 });
 const expeditionSprites = expedition ? portraits.map((src,i) => {
   if(!src) return null;
@@ -253,7 +254,7 @@ function showChoices() {
   const options = draft ? cast.map(character=>character.type) : contract ? ['standard','rush','armor'] : state.offers;
   const buttons = options.map(i => {
     const title = draft ? roster[i].name : contract ? sectorRules[i].title : supplies[i][0];
-    const detail = draft ? roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
+    const detail = draft ? (roster[i].starter ? '기본형 · ' : '')+roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
     const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
     return `<button data-choice="${i}">${art}<b>${title}</b><small>${detail}</small></button>`;
   });
@@ -412,7 +413,7 @@ function showModal(html) {
   if (!$('modal').open) $('modal').showModal();
 }
 function closeModal() { if(!choosing()) $('modal').close(); }
-if(expedition) $('modal').addEventListener('cancel',event=>{if(choosing())event.preventDefault();});
+if(expedition) $('modal').addEventListener('cancel',event=>{if(choosing() || $('modal').classList.contains('title-screen')) event.preventDefault();});
 $('close').onclick = closeModal;
 $('summon').onclick=()=>summon();$('merge').onclick=merge;$('upgrade').onclick=upgrade;$('spell').onclick=spell;
 $('speed').onclick=()=>{state.speed=state.speed===1?2:state.speed===2?3:1;refresh()};$('pause').onclick=()=>{if(saveConflict){location.reload();return;}state.paused=!state.paused;refresh()};$('auto').onclick=()=>{state.auto=!state.auto;refresh();persist()};$('reset').onclick=restart;
@@ -935,7 +936,7 @@ function ingredients(recipe) {
     state.units.reduce((best,u)=>u.type===type && (!best || u.tier<best.tier) ? u : best,null));
 }
 function fuse(index) {
-  const recipe=ZundaExpedition.forms[index];
+  const recipe=ZundaExpedition.fusionRecipes[index];
   if(!recipe || state.gameover) return;
   const [first,second]=ingredients(recipe);
   if(!first || !second) return;
@@ -951,7 +952,7 @@ function fuse(index) {
   persist();
 }
 function showRecipes() {
-  const rows=ZundaExpedition.forms.map((recipe,index)=>{
+  const rows=ZundaExpedition.fusionRecipes.map((recipe,index)=>{
     const ready=ingredients(recipe).every(Boolean);
     return {recipe,index,ready};
   }).sort((a,b)=>Number(b.ready)-Number(a.ready));
@@ -978,7 +979,7 @@ function marketOffers() {
   if(match!==null) pool.splice(pool.indexOf(match),1);
   const options=match===null ? [] : [match];
   const missing=new Set();
-  for(const {first,second} of ZundaExpedition.forms) {
+  for(const {first,second} of ZundaExpedition.fusionRecipes) {
     if(team.includes(first) && !team.includes(second) && pool.includes(second)) missing.add(second);
     if(team.includes(second) && !team.includes(first) && pool.includes(first)) missing.add(first);
   }
@@ -1107,11 +1108,65 @@ if(expedition) {
   $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 전술 지령은 웨이브마다 포격·결빙·방어막에 쓸 포인트 2개를 줍니다. 회복병이 섞이면 회복병 우선을 켜세요. 동료 카드를 고르고 전장에 나타나는 +를 누르면 빈 위치로 이동합니다. 다른 동료를 선택하면 서로 자리를 바꿉니다. 4웨이브마다 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
   syncFocus();
 }
-if (state.gameover) end();
-else if (choosing()) { refresh(); showChoices(); }
-else {
-  refresh();
-  announce(expedition?'로사 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
+function enterGame() {
+  if(state.gameover) end();
+  else if(choosing()) { refresh(); showChoices(); }
+  else {
+    refresh();
+    announce(expedition?'로사 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
+  }
 }
+
+function showTitleScreen() {
+  refresh();
+  const dialog=$('modal');
+  dialog.classList.add('title-screen');
+  showModal('<h2>로사 원정대</h2><button id="startExpedition">게임 시작하기</button>');
+  $('close').hidden=true;
+  $('startExpedition').onclick=()=>{
+    dialog.classList.remove('title-screen');
+    dialog.close();
+    enterGame();
+  };
+  $('startExpedition').focus();
+}
+
+// Change the release ID and notes together when publishing a player-facing update.
+const release = {
+  id:'2026-11-21-title-screen',
+  title:'새 타이틀 화면과 원정대 동료',
+  notes:[
+    '타이틀 화면에서 게임 시작하기를 눌러 원정을 시작할 수 있습니다.',
+    '첫 동료 선택창에서 로사, 프패, 소설가, 빰의 기본형을 고를 수 있습니다.',
+    '상위 조합 동료 새벽검 로사, 서리술사 프패, 뇌전궁 소설가, 월식검 빰을 만나보세요.',
+    '아군 용 네 마리가 새 일러스트를 얻었고, 적군에는 인간형 추적병·돌격병·방패병이 합류했습니다.',
+    '아군과 겹치는 적은 잠시 반투명해집니다. 전투 음악 3곡과 보스 경고음도 추가됐습니다.'
+  ]
+};
+const releaseKey='rosa-expedition-seen-release';
+let seenRelease;
+try { seenRelease=localStorage.getItem(releaseKey); } catch {}
+
+if(expedition && seenRelease!==release.id) {
+  refresh();
+  showModal('<h2>로사 원정대 업데이트</h2><p><strong>'+release.title+'</strong></p><ul>'+
+    release.notes.map(note=>'<li>'+note+'</li>').join('')+
+    '</ul><button id="enterAfterUpdate">확인</button>');
+  $('close').hidden=true;
+  const finishRelease=()=>{
+    try { localStorage.setItem(releaseKey,release.id); } catch {}
+    $('modal').removeEventListener('cancel',cancelRelease);
+    $('modal').close();
+    showTitleScreen();
+  };
+  const cancelRelease=event=>{
+    event.preventDefault();
+    finishRelease();
+  };
+  $('modal').addEventListener('cancel',cancelRelease);
+  $('enterAfterUpdate').onclick=finishRelease;
+  $('enterAfterUpdate').focus();
+} else if(expedition) showTitleScreen();
+else enterGame();
 requestAnimationFrame(frame);
 })();

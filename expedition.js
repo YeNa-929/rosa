@@ -169,6 +169,20 @@ const ZundaExpedition = (() => {
     attack:'assets/heroines/'+hero.slug+'-attack.webp'
   })));
 
+  const rookies = [
+    {type:128,name:'여행자 로사',effect:'burst',dmg:24,rate:.97,range:137,slug:'seria'},
+    {type:129,name:'견습술사 프패',effect:'frost',dmg:15,rate:1.34,range:142,slug:'rune'},
+    {type:130,name:'정찰궁 소설가',effect:'chain',dmg:17,rate:1.05,range:147,slug:'tessa'},
+    {type:131,name:'수련검 빰',effect:'pierce',dmg:23,rate:1.05,range:133,slug:'kaela'}
+  ].map((rookie,i)=>({
+    ...rookie,starter:true,color:heroines[i].color,skill:effects[rookie.effect],silhouette:'hero',
+    portrait:'assets/heroines/'+rookie.slug+'-starter.webp'
+  }));
+  const fusionRecipes = [
+    ...forms,
+    ...forms.slice(-rookies.length).map((form,i)=>({...form,first:rookies[i].type}))
+  ];
+
   const image = src => { const sprite=new Image(); sprite.src=src; return sprite; };
   const beastSrc = index => 'assets/beasts/'+String(index).padStart(2,'0')+'.webp';
   const enemyKeys=Object.keys(opponents);
@@ -256,5 +270,5 @@ const ZundaExpedition = (() => {
     g.fill();
     return canvas;
   }
-  return {forms,opponents,kind,images,region,terrain};
+  return {forms,fusionRecipes,rookies,opponents,kind,images,region,terrain};
 })();
