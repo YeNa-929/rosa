@@ -10,28 +10,37 @@ const roster=[
 ];
 const expedition = document.body.hasAttribute('data-expedition');
 const cast = [
-  ['즌다몬','zundamon_s/zzm_zunmon037.png','#adec8b'],
-  ['도호쿠 즌코','zun_s/zzm_z047.png','#d7f290'],
-  ['도호쿠 키리탄','kiri_s/zzm_kiri_3038.png','#ffb481'],
-  ['시코쿠 메탄','methane_s/zzm_met013.png','#eca9ee'],
-  ['도호쿠 이타코','ita_s/zzm_ita_3035.png','#f3b3b8'],
-  ['큐슈 소라','sora_s/zzm_sora_014.png','#b9e6ff']
-];
-if (expedition) roster.forEach((unit,i) => { [unit.name, , unit.color] = cast[i]; });
+  {type:0,name:'즌다몬',slug:'zundamon',color:'#adec8b'},
+  {type:1,name:'도호쿠 즌코',slug:'zunko',color:'#d7f290'},
+  {type:2,name:'도호쿠 키리탄',slug:'kiritan',color:'#ffb481'},
+  {type:3,name:'시코쿠 메탄',slug:'metan',color:'#eca9ee'},
+  {type:4,name:'도호쿠 이타코',slug:'itako',color:'#f3b3b8'},
+  {type:5,name:'큐슈 소라',slug:'sora',color:'#b9e6ff'},
+  {type:27,name:'주고쿠 우사기',slug:'usagi',color:'#cfecff',dmg:15,rate:1.48,range:138,effect:'frost',skill:'서리 화살 · 적 이동 속도 감소'},
+  {type:28,name:'오에도 찬코',slug:'chanko',color:'#ffc77c',dmg:34,rate:.82,range:135,effect:'burst',skill:'충격파 · 주변 적에 광역 피해'},
+  {type:29,name:'주부 츠루기',slug:'tsurugi',color:'#acdfab',dmg:26,rate:1.03,range:155,effect:'pierce',skill:'일섬 · 장갑 무시'},
+  {type:30,name:'간사이 시노비',slug:'shinobi',color:'#c9bbff',dmg:20,rate:1.42,range:141,effect:'execute',skill:'기습 · 체력이 낮은 적에 추가 피해'},
+  {type:31,name:'안코몬',slug:'ankomon',color:'#f1a3c4',dmg:24,rate:1.07,range:151,effect:'chain',skill:'단팥 번개 · 인접한 적 두 명 타격'}
+].concat([{"type":100,"name":"밤의 뱀파이어","tile":3,"effect":"pierce","color":"#8bd9f7","dmg":18,"rate":0.87,"range":134,"skill":"장갑 무시"},{"type":101,"name":"흑요석 메두사","tile":8,"effect":"frost","color":"#b1b6ff","dmg":21,"rate":1.04,"range":141,"skill":"적 이동 속도 감소"},{"type":102,"name":"반딧불 요정","tile":13,"effect":"chain","color":"#adf0c4","dmg":24,"rate":1.21,"range":148,"skill":"인접 적 연쇄 타격"},{"type":103,"name":"서리 웬디고","tile":16,"effect":"execute","color":"#ff9ca4","dmg":27,"rate":1.38,"range":155,"skill":"약해진 적 추가 피해"},{"type":104,"name":"청철 기사","tile":18,"effect":"burst","color":"#ffd899","dmg":30,"rate":0.87,"range":162,"skill":"범위 폭발"},{"type":105,"name":"황소 투사","tile":21,"effect":"pierce","color":"#8bd9f7","dmg":33,"rate":1.04,"range":134,"skill":"장갑 무시"},{"type":106,"name":"초원의 궁기병","tile":22,"effect":"frost","color":"#b1b6ff","dmg":18,"rate":1.21,"range":141,"skill":"적 이동 속도 감소"},{"type":107,"name":"달빛 늑대인간","tile":25,"effect":"chain","color":"#adf0c4","dmg":21,"rate":1.38,"range":148,"skill":"인접 적 연쇄 타격"},{"type":108,"name":"산호 인어","tile":28,"effect":"execute","color":"#ff9ca4","dmg":24,"rate":0.87,"range":155,"skill":"약해진 적 추가 피해"},{"type":109,"name":"푸른 비룡","tile":32,"effect":"burst","color":"#ffd899","dmg":27,"rate":1.04,"range":162,"skill":"범위 폭발"},{"type":110,"name":"불꽃 용","tile":34,"effect":"pierce","color":"#8bd9f7","dmg":30,"rate":1.21,"range":134,"skill":"장갑 무시"},{"type":111,"name":"빙설 거인","tile":44,"effect":"frost","color":"#b1b6ff","dmg":33,"rate":1.38,"range":141,"skill":"적 이동 속도 감소"},{"type":112,"name":"불꽃 정령","tile":46,"effect":"chain","color":"#adf0c4","dmg":18,"rate":0.87,"range":148,"skill":"인접 적 연쇄 타격"},{"type":113,"name":"빙결 정령","tile":50,"effect":"execute","color":"#ff9ca4","dmg":21,"rate":1.04,"range":155,"skill":"약해진 적 추가 피해"},{"type":114,"name":"별뿔 유니콘","tile":52,"effect":"burst","color":"#ffd899","dmg":24,"rate":1.21,"range":162,"skill":"범위 폭발"},{"type":115,"name":"화염 요정","tile":56,"effect":"pierce","color":"#8bd9f7","dmg":27,"rate":1.38,"range":134,"skill":"장갑 무시"},{"type":116,"name":"황혼 마법사","tile":66,"effect":"frost","color":"#b1b6ff","dmg":30,"rate":0.87,"range":141,"skill":"적 이동 속도 감소"},{"type":117,"name":"석상 가고일","tile":70,"effect":"chain","color":"#adf0c4","dmg":33,"rate":1.04,"range":148,"skill":"인접 적 연쇄 타격"},{"type":118,"name":"비취 슬라임","tile":85,"effect":"execute","color":"#ff9ca4","dmg":18,"rate":1.21,"range":155,"skill":"약해진 적 추가 피해"},{"type":119,"name":"황금 고양이","tile":95,"effect":"burst","color":"#ffd899","dmg":21,"rate":1.38,"range":162,"skill":"범위 폭발"},{"type":120,"name":"황야 그리핀","tile":105,"effect":"pierce","color":"#8bd9f7","dmg":24,"rate":0.87,"range":134,"skill":"장갑 무시"},{"type":121,"name":"맹독 히드라","tile":111,"effect":"frost","color":"#b1b6ff","dmg":27,"rate":1.04,"range":141,"skill":"적 이동 속도 감소"},{"type":122,"name":"숲의 올빼미곰","tile":118,"effect":"chain","color":"#adf0c4","dmg":30,"rate":1.21,"range":148,"skill":"인접 적 연쇄 타격"},{"type":123,"name":"철의 골렘","tile":129,"effect":"execute","color":"#ff9ca4","dmg":33,"rate":1.38,"range":155,"skill":"약해진 적 추가 피해"}]);
 const expansionArt = expedition ? ZundaExpedition.images() : null;
-if(expedition) roster.push(...ZundaExpedition.forms);
+const castByType = new Map(cast.map(character=>[character.type,character]));
+if(expedition) {
+  for(const {type,slug,tile,...character} of cast) roster[type]={projectile:380,...roster[type],...character};
+  for(const form of ZundaExpedition.forms) roster[form.type]=form;
+}
 const portraits = roster.map((_,i) => {
   if(!expedition) return CourtArt.portrait(i);
-  return i<cast.length ? 'https://zunko.jp/sozai/'+cast[i][1] : expansionArt.familiars[i-cast.length].toDataURL();
+  const character=castByType.get(i);
+  return character ? (character.slug ? 'assets/cast/'+character.slug+'.webp' : GuestSprites[character.tile]) : expansionArt.familiars[i];
 });
-const expeditionSprites = expedition ? portraits.slice(0,cast.length).map(src => {
-  const image = new Image();
-  image.referrerPolicy = 'no-referrer';
-  image.src = src;
+const expeditionSprites = expedition ? portraits.map((src,i) => {
+  if(!src) return null;
+  const image=new Image();
+  image.src=src;
   return image;
-}).concat(expansionArt.familiars) : [];
+}) : [];
 const bossInterval = expedition ? 4 : 5;
-const finalWave = 12;
+const finalWave = 16;
 const rosterLimit = expedition ? 12 : 18;
 const mergeCount = expedition ? 2 : 3;
 let selectedUnit = null;
@@ -47,6 +56,7 @@ function persist(){try{localStorage.setItem(SAVE,JSON.stringify({...state,units:
 const beep = CourtAudio.effect;
 function announce(t){$('announcement').textContent=t;$('announcement').style.opacity=1;annTimer=1.7;beep(800)}
 function toast(t){$('toast').textContent=t;$('toast').style.opacity=1;toastTimer=1.9}
+const mirroredField=()=>expedition && Math.floor((state.wave-1)/4)%2===1;
 function resize() {
   const rect = canvas.getBoundingClientRect();
   if (!rect.width || !rect.height) return;
@@ -59,6 +69,8 @@ function resize() {
   g.setTransform(d, 0, 0, d, 0, 0);
   path = [[-22,H*.18],[W*.17,H*.18],[W*.17,H*.47],[W*.79,H*.47],
           [W*.79,H*.78],[W*.19,H*.78],[W*.19,H+30]];
+  if(expedition && state.wave>8) path=[[-22,H*.145],[W*.13,H*.145],[W*.13,H*.49],[W*.87,H*.49],[W*.87,H*.79],[W*.25,H*.79],[W*.25,H+30]];
+  if(mirroredField()) path=path.map(([x,y])=>[W-x,y]);
   lengths = path.slice(1).map(([x,y], i) => Math.hypot(x-path[i][0], y-path[i][1]));
   pathLength = lengths.reduce((sum, value) => sum + value, 0);
   paintTerrain(d);
@@ -69,7 +81,7 @@ function resize() {
   }
 }
 function paintTerrain(d = Math.min(devicePixelRatio || 1,2)) {
-  terrain=expedition ? ZundaExpedition.terrain(W,H,path,d,state.wave) : CourtArt.terrain(W,H,path,d);
+  terrain=expedition ? ZundaExpedition.terrain(W,H,path,d,state.wave,()=>paintTerrain()) : CourtArt.terrain(W,H,path,d);
   if(expedition) $('regionName').textContent=ZundaExpedition.region(state.wave).name;
 }
 new ResizeObserver(resize).observe(canvas);
@@ -89,7 +101,10 @@ function at(t) {
 }
 
 function unitPos(i) {
-  if(expedition) return {x:W*((i>=8?.14:.30)+(i%4)*.155),y:H*[.275,.377,.61][Math.floor(i/4)]};
+  if(expedition) {
+    const x=W*((i>=8?.14:.30)+(i%4)*.155);
+    return {x:mirroredField()?W-x:x,y:H*[.275,.377,.61][Math.floor(i/4)]};
+  }
   const row = Math.floor(i/6);
   return {x: W * ((row === 2 ? .095 : .295) + (i%6)*.121),
           y: H * [.286,.382,.624][row]};
@@ -102,7 +117,7 @@ const supplies = [
   ['보급 상자','골드 45 · 보석 4개',()=>{state.gold+=45;state.gems+=4}],
   ['정예 도전','다음 적 체력 +40% · 통과하면 보석 7개 추가',()=>{state.elite=true}],
   ['동료 지원','동료 한 명 영입 · 만석이면 보석 4개',()=>{
-    if(state.units.length<capacity()) recruit(Math.floor(Math.random()*cast.length));
+    if(state.units.length<capacity()) recruit(cast[Math.floor(Math.random()*cast.length)].type);
     else state.gems+=4;
   }]
 ];
@@ -112,14 +127,14 @@ function recruit(type) {
 const choosing = () => state.phase==='draft'||state.phase==='reward';
 function showChoices() {
   const draft = state.phase==='draft';
-  const options = draft ? [0,1,2] : state.offers;
+  const options = draft ? cast.map(character=>character.type) : state.offers;
   const buttons = options.map(i => {
     const title = draft ? roster[i].name : supplies[i][0];
     const detail = draft ? roster[i].skill : supplies[i][1];
     const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
     return `<button data-choice="${i}">${art}<b>${title}</b><small>${detail}</small></button>`;
   });
-  showModal(`<h2>${draft?'첫 동료를 선택하세요':'원정 보급품을 고르세요'}</h2><p>${draft?'동료를 영입하고 같은 동료·등급 두 명을 합쳐 12웨이브까지 돌파하세요.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p><div class="choices">${buttons.join('')}</div>`);
+  showModal(`<h2>${draft?'첫 동료를 선택하세요':'원정 보급품을 고르세요'}</h2><p>${draft?'동료를 영입하고 같은 동료·등급 두 명을 합쳐 16웨이브까지 돌파하세요.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
   $('close').hidden=true;
   const choices=$('modalBody').querySelectorAll('[data-choice]');
   for(const button of choices) button.onclick=()=>{
@@ -131,7 +146,7 @@ function showChoices() {
       supplies[i][2]();
       state.wave++;
       state.shopCount=0;
-      if(previous!==ZundaExpedition.region(state.wave)) paintTerrain();
+      if(previous!==ZundaExpedition.region(state.wave)) resize();
     }
     state.phase='wave';
     state.offers=[];
@@ -182,7 +197,12 @@ function spawn() {
   if(boss) announce((model?.name ?? '하트 군단의 보스')+' 등장!');
 }
 function waveTotal(){return Math.min(12+state.wave*2,65)}
-function summon(silent=false){if(state.gems<2){if(!silent)toast('💎 보석이 부족합니다');return false}if(state.units.length>=capacity()){if(!silent)toast('편성이 가득 찼습니다');return false}state.gems-=2;const r=Math.random(),type=r<.26?0:r<.48?1:r<.69?2:r<.85?3:r<.96?4:5;state.units.push({id:uid++,type,tier:1,cool:Math.random()*.7, born:visualTime});if(!silent){toast(roster[type].name+' 소환!');beep(720)}refresh();persist();return true}
+function drawRecruit(roll) {
+  const owned=[...new Set(state.units.map(u=>u.type).filter(type=>castByType.has(type)))];
+  if(owned.length && roll<.36) return owned[Math.floor(Math.random()*owned.length)];
+  return cast[Math.floor(Math.random()*cast.length)].type;
+}
+function summon(silent=false){if(state.gems<2){if(!silent)toast('💎 보석이 부족합니다');return false}if(state.units.length>=capacity()){if(!silent)toast('편성이 가득 찼습니다');return false}state.gems-=2;const r=Math.random(),type=expedition ? drawRecruit(r) : r<.26?0:r<.48?1:r<.69?2:r<.85?3:r<.96?4:5;state.units.push({id:uid++,type,tier:1,cool:Math.random()*.7, born:visualTime});if(!silent){toast(roster[type].name+' 소환!');beep(720)}refresh();persist();return true}
 function merge(){const groups={};state.units.forEach(u=>{const key=u.type+'-'+u.tier;(groups[key]??=[]).push(u)});const found=Object.values(groups).filter(a=>a.length>=mergeCount&&a[0].tier<4).sort((a,b)=>b[0].tier-a[0].tier)[0];if(!found){toast('동일 캐릭터와 등급이 필요합니다');return}const ids=new Set(found.slice(0,mergeCount).map(u=>u.id)),u=found[0];state.units=state.units.filter(x=>!ids.has(x.id));let type=u.type;if(!expedition&&u.tier===3&&type<5)type++;state.units.push({id:uid++,type,tier:u.tier+1,cool:0,born:visualTime});announce('✨ '+roster[type].name+' '+(u.tier+1)+'성 합성 성공!');refresh();persist()}
 function upgrade(){const cost=30+state.upgrade*25;if(state.gold<cost){toast('🪙 골드가 부족합니다');return}state.gold-=cost;state.upgrade++;announce('⚔ 공격력 '+(state.upgrade*25)+'% 강화!');refresh();persist()}
 function spell(){if(state.spellCD>0){toast('마법 재사용 대기 중');return}state.spellCD=24;spellFlash=.75;mobs.forEach(m=>{if(m.hp<=0)return;damageMob(m,90+state.wave*11,'#9bd7ff',.65,25);m.slow=4;m.slowFactor=.35});announce('🌀 원더랜드 시간 정지!');beep(400,.3);refresh()}
@@ -232,7 +252,7 @@ function refresh() {
 }
 
 function end(){state.gameover=true;state.paused=true;refresh();persist();$('game').classList.toggle('over',!state.cleared);showModal(`<h2>${state.cleared?'원정 성공!':expedition?'원정 종료':'원더랜드 함락'}</h2><p>${state.wave} 웨이브까지 방어했습니다.</p><p>처치한 적: ${state.kills} · 강화 레벨: ${state.upgrade}</p><button id="retry" class="danger">다시 도전</button>`);$('retry').onclick=restart}
-function restart(){if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();selectedUnit=null;if(expedition){syncFocus();paintTerrain();}mobs=[];bullets=[];particles=[];uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
+function restart(){if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();selectedUnit=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
 function showModal(html) {
   $('close').hidden = false;
   $('modalBody').innerHTML = html;
@@ -360,9 +380,11 @@ function drawGuardians(motion) {
       g.drawImage(CourtArt.sprites[u.type],spriteX-size/2,spriteY-size*.68,size,size);
     } else if(image && (image.width && !('complete' in image) || image.complete && image.naturalWidth)) {
       const sourceWidth=image.naturalWidth || image.width, sourceHeight=image.naturalHeight || image.height;
-      const scale=Math.min(size*1.18/sourceHeight,size*1.25/sourceWidth);
+      const scale=Math.min(size*1.38/sourceHeight,size*1.38/sourceWidth);
       const width=sourceWidth*scale, height=sourceHeight*scale;
+      if(roster[u.type].hue) g.filter=`hue-rotate(${roster[u.type].hue}deg)`;
       g.drawImage(image,spriteX-width/2,spriteY+size*.42-height,width,height);
+      g.filter='none';
     } else {
       g.fillStyle=color;
       g.font='bold 13px system-ui';
@@ -379,7 +401,7 @@ function drawGuardians(motion) {
 function drawEnemies(motion) {
   for (const m of mobs) {
     if (m.hp <= 0) continue;
-    const size = m.boss ? (m.model ? (m.enraged ? 83 : 72) : 65) : 44;
+    const size = m.boss ? (m.model ? (m.enraged ? 100 : 84) : 65) : (m.model ? 49 : 44);
     const stride = motion ? Math.sin(visualTime*13+m.id)*2 : 0;
     g.fillStyle = '#151524ab';
     g.beginPath();
@@ -391,8 +413,11 @@ function drawEnemies(motion) {
       g.stroke();
     }
     if (motion && m.flash>visualTime) g.filter = 'brightness(1.55)';
-    const sprite=m.model ? expansionArt.enemies[m.kind] : CourtArt.enemies[Number(m.boss)];
-    g.drawImage(sprite,m.x-size/2,m.y-size*.65+stride,size,size);
+    const skin=m.model ? expansionArt.enemies[m.kind] : null;
+    const sprite=skin ? (skin.art.complete && skin.art.naturalWidth ? skin.art : skin.fallback) : CourtArt.enemies[Number(m.boss)];
+    const sw=sprite.naturalWidth || sprite.width, sh=sprite.naturalHeight || sprite.height;
+    const scale=Math.min(size/sw,size/sh);
+    g.drawImage(sprite,m.x-sw*scale/2,m.y-sh*scale*.62+stride,sw*scale,sh*scale);
     g.filter = 'none';
     const width = m.boss ? 40 : 26;
     g.fillStyle = '#24202d';
@@ -473,7 +498,7 @@ function frame(now) {
 }
 
 function renderFormation() {
-  $('cards').innerHTML=state.units.map((u,i)=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" referrerpolicy="no-referrer" src="${portraits[u.type]}"><span>${roster[u.type].name}</span><strong>${i+1}번 · ★${u.tier}</strong></button>`).join('')
+  $('cards').innerHTML=state.units.map((u,i)=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" referrerpolicy="no-referrer" src="${portraits[u.type]}" style="--portrait-hue:${roster[u.type].hue??0}deg"><span>${roster[u.type].name}</span><strong>${i+1}번 · ★${u.tier}</strong></button>`).join('')
     || '<div class="unitcard empty">보석 2개로 동료를 영입하세요</div>';
 }
 function selectFormation(id) {
@@ -501,7 +526,7 @@ function fuse(index) {
   const [first,second]=ingredients(recipe);
   if(!first || !second) return;
   const slot=state.units.indexOf(first);
-  state.units[slot]={id:uid++,type:cast.length+index,tier:Math.min(first.tier,second.tier),cool:0,born:visualTime};
+  state.units[slot]={id:uid++,type:recipe.type,tier:Math.min(first.tier,second.tier),cool:0,born:visualTime};
   state.units.splice(state.units.indexOf(second),1);
   selectedUnit=null;
   closeModal();
@@ -514,12 +539,41 @@ function showRecipes() {
     const ready=ingredients(recipe).every(Boolean);
     return {recipe,index,ready};
   }).sort((a,b)=>Number(b.ready)-Number(a.ready));
-  const buttons=rows.map(({recipe,index,ready})=>`<button class="recipe" data-recipe="${index}" ${ready?'':'disabled'}><img src="${portraits[cast.length+index]}" alt=""><span><b>${recipe.name}</b><small>${roster[recipe.first].name} + ${roster[recipe.second].name}</small><small>${recipe.skill}</small></span><em>${ready?'조합':'재료 부족'}</em></button>`).join('');
-  showModal('<h2>몬스터 조합표</h2><p>서로 다른 동료를 조합하면 두 재료 중 낮은 별 등급으로 태어납니다. 일반 합성은 같은 동료의 등급을 올립니다.</p><div class="recipes">'+buttons+'</div>');
+  const buttons=rows.map(({recipe,index,ready})=>`<button class="recipe" data-recipe="${index}" data-ready="${ready}" ${ready?'':'disabled'}><img src="${portraits[recipe.type]}" alt="" style="--portrait-hue:${recipe.hue}deg"><span><b>${recipe.name}</b><small>${roster[recipe.first].name} + ${roster[recipe.second].name}</small><small>${recipe.skill}</small></span><em>${ready?'조합':'재료 부족'}</em></button>`).join('');
+  showModal('<h2>몬스터 조합표</h2><p>서로 다른 동료를 조합하면 두 재료 중 낮은 별 등급으로 태어납니다.</p><label class="recipe-filter"><input id="readyOnly" type="checkbox"> 지금 조합 가능</label><label class="recipe-filter"><input id="recipeSearch" type="search" placeholder="몬스터 또는 재료 이름" aria-label="몬스터 또는 재료를 검색"></label><p id="recipeEmpty" hidden>조건에 맞는 조합이 없습니다.</p><div class="recipes">'+buttons+'</div>');
+  const updateFilter=()=>{
+    const query=$('recipeSearch').value.trim().toLocaleLowerCase();
+    const readyOnly=$('readyOnly').checked;
+    let shown=0;
+    for(const button of $('modalBody').querySelectorAll('[data-recipe]')) {
+      button.hidden=(readyOnly && button.dataset.ready!=='true') || !button.textContent.toLocaleLowerCase().includes(query);
+      if(!button.hidden) shown++;
+    }
+    $('recipeEmpty').hidden=shown>0;
+  };
+  $('readyOnly').onchange=updateFilter;
+  $('recipeSearch').oninput=updateFilter;
 }
 function marketOffers() {
-  const pool=cast.map((_,i)=>i);
-  return Array.from({length:3},()=>pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+  const pool=cast.map(character=>character.type);
+  const team=[...new Set(state.units.map(unit=>unit.type))];
+  const owned=team.filter(type=>castByType.has(type));
+  const match=owned.length ? owned[Math.floor(Math.random()*owned.length)] : null;
+  if(match!==null) pool.splice(pool.indexOf(match),1);
+  const options=match===null ? [] : [match];
+  const missing=new Set();
+  for(const {first,second} of ZundaExpedition.forms) {
+    if(team.includes(first) && !team.includes(second) && pool.includes(second)) missing.add(second);
+    if(team.includes(second) && !team.includes(first) && pool.includes(first)) missing.add(first);
+  }
+  if(missing.size) {
+    const matching=Array.from(missing);
+    const partner=matching[Math.floor(Math.random()*matching.length)];
+    options.push(partner);
+    pool.splice(pool.indexOf(partner),1);
+  }
+  while(options.length<3) options.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+  return options;
 }
 function trainingCost(unit) { return 3+unit.tier*3; }
 function showMarket() {
@@ -585,14 +639,14 @@ if(expedition) {
     if(card) selectFormation(Number(card.dataset.unit));
   });
   $('focus').onclick=()=>{state.bossFocus=!state.bossFocus;syncFocus();persist();};
-  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 동료 카드 두 장을 차례로 누르면 전장 위치가 바뀝니다. 4·8·12웨이브에는 반드시 저지해야 하는 보스가 등장합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
+  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 동료 카드 두 장을 차례로 누르면 전장 위치가 바뀝니다. 4·8·12·16웨이브에는 반드시 저지해야 하는 보스가 등장합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
   syncFocus();
 }
 if (state.gameover) end();
 else if (choosing()) { refresh(); showChoices(); }
 else {
   refresh();
-  announce(expedition?'즌다 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
+  announce(expedition?'차원 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
 }
 requestAnimationFrame(frame);
 })();

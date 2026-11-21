@@ -23,7 +23,50 @@ const ZundaExpedition = (() => {
     [8,19,'폭풍의 천공수','chain','#d1bdff',118,1.16,184],
     [9,18,'극지의 설월호','frost','#bfecff',115,1.22,176],
     [10,20,'혜성의 성기사','pierce','#d0ebff',145,.95,190],
-    [12,14,'잎바다의 고래','chain','#a4f8cc',114,1.13,189]
+    [12,14,'잎바다의 고래','chain','#a4f8cc',114,1.13,189],
+    [0,27,"달토끼 정찰기","frost","#ceecff",38,1.56,142],
+    [1,27,"은빛 뿔사슴","chain","#e2f9c5",51,1.12,161],
+    [2,28,"태양 도깨비","burst","#ffb371",63,1.02,146],
+    [4,28,"금강 불곰","pierce","#ffdf92",67,0.96,151],
+    [1,29,"청동 바람개비","pierce","#c4f5ae",44,1.38,165],
+    [5,29,"기계 해오라기","chain","#9cddfc",57,1.04,184],
+    [2,30,"그림자 카라칼","execute","#c7b8ff",51,1.32,147],
+    [3,30,"밤안개 흑표","frost","#b9b5f3",43,1.39,153],
+    [0,31,"콩알 혜성","burst","#f4aabd",45,1.39,143],
+    [4,31,"박명 나방","execute","#efb6e8",61,1.06,157],
+    [27,28,"백월 망치수","pierce","#ffdcba",69,0.98,160],
+    [29,30,"회오리 비룡","chain","#80efd7",58,1.17,173],
+    [30,31,"월식 사신새","execute","#eea8ce",64,1.1,171],
+    [27,31,"눈꽃 박쥐","frost","#bce8fb",49,1.43,148],
+    [32,40,"동짓달의 순록","burst","#b9ffed",130,1.11,181],
+    [34,37,"용광로의 봉황","chain","#ffbb97",145,1.04,187],
+    [38,44,"월하의 맹수","execute","#eaaef1",147,1.09,182],
+    [36,42,"은하의 선도자","pierce","#bee9ff",155,1,194],
+    [33,45,"빙하의 종달새","frost","#b9e4ff",121,1.28,174],
+    [0,100,"혈월 키메라","chain","#ff9ca4",38,1,150],
+    [1,101,"석화의 창기병","execute","#ffd899",42,1.13,156],
+    [2,102,"별불 실프","burst","#8bd9f7",46,1.26,162],
+    [3,103,"겨울의 맹위","pierce","#b1b6ff",50,1.39,168],
+    [4,104,"청철의 폭풍","frost","#adf0c4",54,1.52,174],
+    [5,105,"황금 미노타우로스","chain","#ff9ca4",58,1,150],
+    [27,106,"여명의 기마대","execute","#ffd899",62,1.13,156],
+    [28,107,"야행의 추적자","burst","#8bd9f7",66,1.26,162],
+    [29,108,"산호의 맹약","pierce","#b1b6ff",38,1.39,168],
+    [30,109,"푸른 천룡","frost","#adf0c4",42,1.52,174],
+    [31,110,"태양의 화룡","chain","#ff9ca4",46,1,150],
+    [0,111,"빙설의 방패","execute","#ffd899",50,1.13,156],
+    [1,112,"화산의 수호수","burst","#8bd9f7",54,1.26,162],
+    [2,113,"절대영도의 파장","pierce","#b1b6ff",58,1.39,168],
+    [3,114,"별뿔 제왕","frost","#adf0c4",62,1.52,174],
+    [4,115,"발화의 날개","chain","#ff9ca4",66,1,150],
+    [5,116,"황혼의 대현자","execute","#ffd899",38,1.13,156],
+    [27,117,"철벽의 날개","burst","#8bd9f7",42,1.26,162],
+    [28,118,"비취 스펙터","pierce","#b1b6ff",46,1.39,168],
+    [29,119,"황금 행운묘","frost","#adf0c4",50,1.52,174],
+    [30,120,"황야의 왕익","chain","#ff9ca4",54,1,150],
+    [31,121,"일곱 머리 군주","execute","#ffd899",58,1.13,156],
+    [0,122,"숲의 파수꾼","burst","#8bd9f7",62,1.26,162],
+    [1,123,"철벽 거신","pierce","#b1b6ff",66,1.39,168]
   ];
   const effects = {
     frost:'서리 · 이동 속도 감소',execute:'마무리 · 체력 낮은 적에 추가 피해',
@@ -38,11 +81,12 @@ const ZundaExpedition = (() => {
     wraith:  {name:'공허 망령',hp:1.19,speed:1.12,armor:.14,color:'#c4a7ff',shape:3},
     bastion: {name:'철갑 거신',hp:1,speed:.88,armor:.30,color:'#ffc66e',shape:2},
     herald:  {name:'자색 폭풍룡',hp:1.10,speed:1.08,armor:.15,color:'#dba4ff',shape:3},
-    eclipse: {name:'일식의 군주',hp:1.23,speed:1,armor:.21,color:'#ff9d87',shape:4}
+    eclipse: {name:'일식의 군주',hp:1.23,speed:1,armor:.21,color:'#ff9d87',shape:4},
+    sentinel:{name:'월광 감시자',hp:1.15,speed:1.08,armor:.23,color:'#9febff',shape:3}
   };
 
   function kind(wave, spawned, boss) {
-    if(boss) return wave===4?'bastion':wave===8?'herald':'eclipse';
+    if(boss) return wave===4?'bastion':wave===8?'herald':wave===12?'eclipse':'sentinel';
     if(wave>=7 && spawned%5===3) return 'wraith';
     if(wave>=3 && spawned%4===2) return 'shell';
     if(wave>=2 && spawned%3===1) return 'runner';
@@ -98,42 +142,55 @@ const ZundaExpedition = (() => {
     return canvas;
   }
   const forms = recipes.map(([first,second,name,effect,color,dmg,rate,range],i) => ({
-    first,second,name,effect,color,dmg,rate,range,projectile:360+(i%4)*25,skill:effects[effect]
+    type:i<21 ? i+6 : i+11,hue:[0,20,-35,72,135,-80,165][Math.floor(i/9)] ?? 95,first,second,name,effect,color,dmg,rate,range,projectile:360+(i%4)*25,skill:effects[effect]
   }));
 
+  const image = src => { const sprite=new Image(); sprite.src=src; return sprite; };
+  const beastSrc = index => 'assets/beasts/'+String(index).padStart(2,'0')+'.webp';
+  const enemyKeys=Object.keys(opponents);
+  const backgrounds=['canyon','rift','citadel','moonwell'].map(name=>image('assets/fields/'+name+'.webp'));
   function images() {
     return {
-      familiars:forms.map((f,i)=>makeSprite(f.color,i%5,false,i>=15)),
+      familiars:Object.fromEntries(forms.map((f,i)=>[f.type,beastSrc(7+(i%9))])),
       enemies:Object.fromEntries(Object.entries(opponents).map(([key,o])=>[
-        key,makeSprite(o.color,o.shape,true,['bastion','herald','eclipse'].includes(key))
+        key,{art:image(beastSrc(enemyKeys.indexOf(key))), fallback:makeSprite(o.color,o.shape,true,['bastion','herald','eclipse','sentinel'].includes(key))}
       ]))
     };
   }
   const regions = [
     {name:'별등불 협곡',top:'#131a32',land:'#283e54',edge:'#617c8e',road:'#3b4c65',light:'#95caf1',stone:'#456278'},
     {name:'보랏빛 균열',top:'#21152f',land:'#442855',edge:'#916ba2',road:'#513958',light:'#e4a2ff',stone:'#73477d'},
-    {name:'일식 성채',top:'#291822',land:'#543640',edge:'#a57469',road:'#60454c',light:'#ffbe88',stone:'#87554f'}
+    {name:'일식 성채',top:'#291822',land:'#543640',edge:'#a57469',road:'#60454c',light:'#ffbe88',stone:'#87554f'},
+    {name:'월광의 샘',top:'#101f38',land:'#2a5368',edge:'#558f9f',road:'#41657a',light:'#9ef7f4',stone:'#51798c'}
   ];
   function region(wave) { return regions[Math.min(regions.length-1,Math.floor((wave-1)/4))]; }
 
-  function terrain(width,height,path,dpr,wave) {
+  function terrain(width,height,path,dpr,wave,onLoad) {
     const canvas=document.createElement('canvas');
     canvas.width=Math.round(width*dpr);
     canvas.height=Math.round(height*dpr);
     const g=canvas.getContext('2d');
     g.scale(dpr,dpr);
     const p=region(wave);
+    const background=backgrounds[regions.indexOf(p)];
+    const painted=background.complete && background.naturalWidth>0;
+    if(!background.complete) background.onload=onLoad;
     const floor=g.createRadialGradient(width*.5,height*.4,10,width*.5,height*.48,Math.max(width,height)*.75);
     floor.addColorStop(0,p.land);
     floor.addColorStop(1,p.top);
     g.fillStyle=floor;
     g.fillRect(0,0,width,height);
+    if(painted) {
+      g.drawImage(background,0,0,width,height);
+      g.fillStyle='#080e2640';
+      g.fillRect(0,0,width,height);
+    }
     let seed=317;
     const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
-    for(let i=0;i<185;i++) {
+    for(let i=0;i<(painted?58:185);i++) {
       const x=random()*width,y=random()*height;
       const r=2+random()*9;
-      if(i%4===0 && (x<width*.11 || x>width*.86 || y>height*.81 || y<height*.13)) {
+      if(!painted && i%4===0 && (x<width*.11 || x>width*.86 || y>height*.81 || y<height*.13)) {
         polygon(g,[[x-r,y+4],[x-r*.35,y-r*1.5],[x+1,y-r*2.2],[x+r,y-4],[x+r*.65,y+6]],p.stone);
         polygon(g,[[x+1,y-r*2.2],[x+r,y-4],[x+r*.65,y+6],[x+1,y+2]],p.top);
         g.fillStyle=p.light+'a6';
@@ -147,7 +204,7 @@ const ZundaExpedition = (() => {
     g.lineJoin='round';
     g.beginPath();
     path.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));
-    for(const [size,color] of [[42,p.top],[36,p.edge],[32,p.stone],[28,p.road]]) {
+    for(const [size,color] of [[42,p.top+'bd'],[36,p.light+'70'],[33,p.top+'d8'],[28,p.road+'b0']]) {
       g.strokeStyle=color;
       g.lineWidth=size;
       g.stroke();
