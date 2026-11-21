@@ -169,7 +169,7 @@ const regionPads = regionRoutes.map(route=>{
   // Append the entrance row so existing saved slot IDs keep their positions.
   const fromRight=route[0][0]>1;
   const y=battlefieldY(route[0][1])-.08;
-  for(const x of [.16,.30,.44,.58]) pads.push({x:fromRight ? 1-x : x,y,entrance:true});
+  for(const [index,x] of [.16,.30,.44,.58].entries()) pads.push({x:fromRight ? 1-x : x,y,entrance:true,label:'입구 '+(index+1)});
   return pads;
 });
 function reconcileSlots() {
@@ -1031,7 +1031,7 @@ function renderFormation() {
   $('autoDeploy').disabled=state.gameover || !state.units.length;
   $('reserveTab').textContent=reserveView?'출전 보기':'대기 '+(state.units.length-deployedCount());
   $('reserveTab').setAttribute('aria-pressed',reserveView);
-  $('cards').innerHTML=state.units.filter(u=>!!u.reserve===reserveView).map(u=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" draggable="false" referrerpolicy="no-referrer" src="${portraits[u.type]}" style="--portrait-hue:${roster[u.type].hue??0}deg"><span>${roster[u.type].name}</span><strong>${u.reserve?'대기':(u.slot+1)+'번'} · ★${u.tier}</strong></button>`).join('')
+  $('cards').innerHTML=state.units.filter(u=>!!u.reserve===reserveView).map(u=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" draggable="false" referrerpolicy="no-referrer" src="${portraits[u.type]}" style="--portrait-hue:${roster[u.type].hue??0}deg"><span>${roster[u.type].name}</span><strong>${u.reserve?'대기':(deploymentPads[u.slot]?.label ?? (u.slot+1)+'번')} · ★${u.tier}</strong></button>`).join('')
     || '<div class="unitcard empty">'+(reserveView?'대기 중인 동료가 없습니다':'보석 2개로 동료를 영입하세요')+'</div>';
 }
 function renderPads() {
@@ -1041,9 +1041,9 @@ function renderPads() {
   layer.hidden=!active;
   if(!active) return;
   const occupied=new Map(state.units.filter(unit=>!unit.reserve).map(unit=>[unit.slot,unit]));
-  layer.innerHTML=deploymentPads.map(({x,y},slot)=>{
+  layer.innerHTML=deploymentPads.map(({x,y,label:padLabel},slot)=>{
     const unit=occupied.get(slot);
-    const label=unit ? (unit.id===selectedUnit?'현재 위치':roster[unit.type].name+'과 위치 교체') : (slot+1)+'번 빈 위치에 배치';
+    const label=unit ? (unit.id===selectedUnit?'현재 위치':roster[unit.type].name+'과 위치 교체') : (padLabel ?? (slot+1)+'번')+' 빈 위치에 배치';
     return `<button type="button" class="deploy-pad ${unit?'occupied':''}" data-pad="${slot}" ${unit?`data-board-unit="${unit.id}"`:''} aria-label="${label}" aria-pressed="${unit?.id===selectedUnit}" style="left:${x*100}%;top:${y*100}%">${unit?'◆':'+'}</button>`;
   }).join('');
 }

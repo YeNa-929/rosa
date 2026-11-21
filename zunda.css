@@ -336,7 +336,11 @@ body[data-expedition] {
 .unit-weapon button, .unit-growth button, #openExpeditionCodex { min-height:44px; padding:4px 8px; font-weight:800; }
 
 [data-expedition] #stage { flex-basis:clamp(242px,38dvh,365px); min-height:clamp(242px,38dvh,365px); }
-[data-expedition] #boss:not(.boss-active) .meter { visibility:hidden; }
+[data-expedition] #boss:not(.boss-active) .meter { display:none; }
+.encounter-info { flex:1; min-width:0; }
+.field-status, .boss-status { display:flex; align-items:center; gap:6px; }
+.field-status { justify-content:space-between; margin-bottom:3px; color:#dbe8ff; font-size:12px; font-weight:750; }
+#roundflag { white-space:nowrap; }
 [data-expedition] #recon { min-height:38px; padding:4px 10px; font-size:12px; white-space:nowrap; }
 [data-expedition] .battle-orders { margin:6px 0 0; }
 [data-expedition] #reserveTab, [data-expedition] #autoDeploy { min-height:44px; }

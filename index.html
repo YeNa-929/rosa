@@ -43,15 +43,16 @@
       <div class="stat life"><span>생명</span><b id="life">25</b></div>
     </section>
     <section id="boss" aria-label="보스 현황">
-      <div id="bosslabel">다음 보스 · 웨이브 4</div>
-      <div class="meter"><i id="bossbar"></i></div>
+      <div class="encounter-info">
+        <div class="field-status"><span id="regionName">별등불 협곡</span><span id="roundflag">전투 중</span></div>
+        <div class="boss-status"><div id="bosslabel">다음 보스 · 웨이브 4</div><div class="meter"><i id="bossbar"></i></div></div>
+      </div>
       <button id="recon" type="button" aria-label="다음 웨이브 정찰" aria-haspopup="dialog">정찰</button>
     </section>
     <div id="stage">
       <canvas id="board" aria-label="로사 원정대 전투 필드"></canvas>
       <div id="placement" aria-label="전장 배치 위치" hidden></div>
       <div id="aimHint" role="status" hidden></div>
-      <div class="stage-caption"><span id="regionName">별등불 협곡</span><span id="roundflag">전투 중</span></div>
       <div id="announcement" role="status"></div>
       <div id="toast" role="status"></div>
       <div id="chargeMeter" hidden><b id="chargeLabel"></b><div><i id="chargeFill"></i></div></div>
