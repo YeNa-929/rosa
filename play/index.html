@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <base href="/rosa/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#181323">
+  <title>차원 원정대 · 비영리 팬게임</title>
+  <meta name="description" content="35종의 동료를 모아 64가지 몬스터로 조합하고, 네 전장과 16웨이브의 보스에 도전하세요.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:site_name" content="차원 원정대">
+  <meta property="og:title" content="차원 원정대 · 크로스오버 디펜스">
+  <meta property="og:description" content="35종의 동료를 모아 64가지 몬스터로 조합하고, 네 전장과 16웨이브의 보스에 도전하세요.">
+  <meta property="og:url" content="https://yena-929.github.io/rosa/play/">
+  <meta property="og:image" content="https://yena-929.github.io/rosa/assets/share/kakao-combat-v2.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="800">
+  <meta property="og:image:height" content="420">
+  <meta property="og:image:alt" content="수정 협곡을 배경으로 한 차원 원정대 게임 커버">
+  <link rel="stylesheet" href="style.css?v=zunda-evolutions">
+  <script defer src="art.js?v=moonlit-rose-court"></script>
+  <script defer src="audio.js?v=battle-music"></script>
+  <script defer src="guest-art.js?v=1"></script>
+  <script defer src="expedition.js?v=crossover-1"></script>
+  <script defer src="game.js?v=active-defense-1"></script>
+  <link rel="stylesheet" href="zunda.css?v=active-defense-1">
+</head>
+<body data-expedition>
+  <main id="game">
+    <header>
+      <span class="crest" aria-hidden="true">✦</span>
+      <h1>차원 원정대 <small>비영리 크로스오버 디펜스</small></h1>
+      <button id="help" aria-label="게임 방법" aria-haspopup="dialog">?</button>
+      <button id="sound" aria-label="음악과 효과음" aria-pressed="false">♪</button>
+    </header>
+    <section id="stats" aria-label="전투 현황">
+      <div class="stat wave"><span>웨이브</span><b id="wave">1</b></div>
+      <div class="stat gems"><span>보석</span><b id="gems">14</b></div>
+      <div class="stat gold"><span>골드</span><b id="gold">60</b></div>
+      <div class="stat life"><span>생명</span><b id="life">25</b></div>
+    </section>
+    <section id="boss" aria-label="보스 현황">
+      <div id="bosslabel">다음 보스 · 웨이브 4</div>
+      <div class="meter"><i id="bossbar"></i></div>
+    </section>
+    <div id="stage">
+      <canvas id="board" aria-label="차원 원정대 전투 필드"></canvas>
+      <div class="stage-caption"><span id="regionName">별등불 협곡</span><span id="roundflag">전투 중</span></div>
+      <div id="announcement" role="status"></div>
+      <div id="toast" role="status"></div>
+      <div id="chargeMeter" hidden><b id="chargeLabel"></b><div><i id="chargeFill"></i></div></div>
+    </div>
+    <section id="roster" aria-label="나의 동료">
+      <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
+      <div id="cards"></div>
+    </section>
+    <footer>
+      <button id="interrupt" type="button" disabled>돌진 저지 <small id="interruptStatus">돌진 예고에 사용</small></button>
+      <div class="actions">
+        <button id="summon" class="primary"><span aria-hidden="true">✦</span> 영입 <small>보석 2</small></button>
+        <button id="merge"><span aria-hidden="true">❖</span> 합성 <small>동일 2명</small></button>
+        <button id="upgrade"><span aria-hidden="true">↟</span> 강화 <small id="upgradeCost">골드 30</small></button>
+        <button id="spell"><span aria-hidden="true">☾</span> 간식 폭풍 <small id="spellCost">준비 완료</small></button>
+      </div>
+      <div class="subactions">
+        <button id="speed">1배속</button>
+        <button id="pause" aria-pressed="false">일시정지</button>
+        <button id="codex" aria-haspopup="dialog">도감</button>
+        <button id="focus" aria-pressed="false">선두 우선</button>
+        <button id="reset">새 원정</button>
+      </div>
+      <div class="tactics"><button id="recipes" aria-haspopup="dialog">몬스터 조합표</button><button id="market" aria-haspopup="dialog">보급소</button></div>
+      <div class="zunda-credit"><a href="wonderland.html">원더랜드 플레이</a><a href="https://zunko.jp/guideline.html">캐릭터 © SSS LLC.</a></div>
+    </footer>
+    <dialog id="modal" aria-labelledby="modalTitle">
+      <div class="panel">
+        <button id="close" aria-label="닫기" autofocus>×</button>
+        <div id="modalBody"></div>
+      </div>
+    </dialog>
+  </main>
+</body>
+</html>

@@ -56,3 +56,13 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 .recipe[hidden] { display:none; }
 .recipe-filter { display:flex; align-items:center; gap:5px; font-size:13px; margin-block:6px; }
 .recipe-filter input[type=search] { width:100%; min-height:39px; font:inherit; color:inherit; padding:6px 9px; background:#20273b; border:1px solid #707c97; border-radius:7px; }
+
+#interrupt { display:flex; justify-content:space-between; align-items:center; width:100%; gap:10px; min-height:44px; margin-bottom:6px; padding:4px 10px; font-weight:850; color:#dce7ff; background:#253550; }
+#interrupt small { font-weight:750; color:#cbd7f5; }
+#interrupt.ready { color:#291a1b; border-color:#ffe1ac; background:linear-gradient(115deg,#ffe3a6,#ee9372); box-shadow:0 0 10px #ff967d80; }
+#interrupt.ready small { color:#4b2327; }
+#interrupt.perfect { color:#10271f; border-color:#ddffab; background:linear-gradient(115deg,#e7ffa7,#87efc6); }
+#interrupt.perfect small { color:#164637; }
+#chargeMeter { position:absolute; inset:auto 12px 46px; padding:8px; background:#291a31f2; border:1px solid #f5a986; border-radius:8px; color:#ffe6c7; font-size:12px; pointer-events:none; }
+#chargeMeter div { height:4px; margin-top:5px; border-radius:3px; overflow:hidden; background:#613749; }
+#chargeFill { display:block; height:100%; background:#ffb287; }

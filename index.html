@@ -12,18 +12,18 @@
   <meta property="og:title" content="차원 원정대 · 크로스오버 디펜스">
   <meta property="og:description" content="35종의 동료를 모아 64가지 몬스터로 조합하고, 네 전장과 16웨이브의 보스에 도전하세요.">
   <meta property="og:url" content="https://yena-929.github.io/rosa/">
-  <meta property="og:image" content="https://yena-929.github.io/rosa/assets/share/expedition-cover-v1.jpg">
+  <meta property="og:image" content="https://yena-929.github.io/rosa/assets/share/kakao-combat-v2.jpg">
   <meta property="og:image:type" content="image/jpeg">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta property="og:image:width" content="800">
+  <meta property="og:image:height" content="420">
   <meta property="og:image:alt" content="수정 협곡을 배경으로 한 차원 원정대 게임 커버">
   <link rel="stylesheet" href="style.css?v=zunda-evolutions">
   <script defer src="art.js?v=moonlit-rose-court"></script>
   <script defer src="audio.js?v=battle-music"></script>
   <script defer src="guest-art.js?v=1"></script>
   <script defer src="expedition.js?v=crossover-1"></script>
-  <script defer src="game.js?v=crossover-1"></script>
-  <link rel="stylesheet" href="zunda.css?v=crossover-1">
+  <script defer src="game.js?v=active-defense-1"></script>
+  <link rel="stylesheet" href="zunda.css?v=active-defense-1">
 </head>
 <body data-expedition>
   <main id="game">
@@ -48,12 +48,14 @@
       <div class="stage-caption"><span id="regionName">별등불 협곡</span><span id="roundflag">전투 중</span></div>
       <div id="announcement" role="status"></div>
       <div id="toast" role="status"></div>
+      <div id="chargeMeter" hidden><b id="chargeLabel"></b><div><i id="chargeFill"></i></div></div>
     </div>
     <section id="roster" aria-label="나의 동료">
       <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
       <div id="cards"></div>
     </section>
     <footer>
+      <button id="interrupt" type="button" disabled>돌진 저지 <small id="interruptStatus">돌진 예고에 사용</small></button>
       <div class="actions">
         <button id="summon" class="primary"><span aria-hidden="true">✦</span> 영입 <small>보석 2</small></button>
         <button id="merge"><span aria-hidden="true">❖</span> 합성 <small>동일 2명</small></button>
