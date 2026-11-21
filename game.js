@@ -39,9 +39,9 @@ const expeditionSprites = expedition ? portraits.map((src,i) => {
   image.src=src;
   return image;
 }) : [];
-const attackSprites = expedition ? new Map(cast.filter(c=>c.tile).map(c=>{
+const attackSprites = expedition ? new Map([...cast.filter(c=>c.tile), ...ZundaExpedition.forms.filter(form=>form.attack)].map(c=>{
   const image=new Image();
-  image.src='assets/attacks/'+c.tile+'.webp';
+  image.src=c.attack ?? 'assets/attacks/'+c.tile+'.webp';
   return [c.type,image];
 })) : new Map();
 const bossInterval = expedition ? 4 : 5;
@@ -649,6 +649,7 @@ for(const b of bullets){if(b.target.hp<=0){b.dead=true;continue}const dx=b.targe
 bullets=bullets.filter(b=>!b.dead);mobs=mobs.filter(m=>m.hp>0);particles.forEach(p=>p.life-=dt);particles=particles.filter(p=>p.life>0);
 saveTimer+=dt;if(saveTimer>12){saveTimer=0;persist()}}
 function drawGuardians(motion) {
+  const silhouettes=[];
   state.units.forEach((u, i) => {
     if(u.reserve) return;
     let {x,y} = unitPos(i);
@@ -659,7 +660,7 @@ function drawGuardians(motion) {
       if(progress>=1) u.moveFrom=null;
     }
     const color = roster[u.type].color;
-    const size = Math.min(W*.111, H*.119, 49);
+    const size=expedition ? Math.min(W*.094,H*.11,43) : Math.min(W*.111,H*.119,49);
     const attackAge=visualTime-(u.fired ?? -1);
     const shot = Math.max(0,1-attackAge/.27);
     const arrival = Math.max(0, 1-(visualTime-(u.born ?? -1))/.4);
@@ -697,7 +698,10 @@ function drawGuardians(motion) {
       g.drawImage(CourtArt.sprites[u.type],spriteX-size/2,spriteY-size*.68,size,size);
     } else if(image && (image.width && !('complete' in image) || image.complete && image.naturalWidth)) {
       const sourceWidth=image.naturalWidth || image.width, sourceHeight=image.naturalHeight || image.height;
-      const scale=Math.min(size*1.38/sourceHeight,size*1.38/sourceWidth);
+      const silhouette=roster[u.type].silhouette;
+      const maxWidth=silhouette==='dragon' ? 1.65 : silhouette==='hero' && !strike ? 1.12 : 1.38;
+      const maxHeight=silhouette==='hero' ? 1.49 : silhouette==='dragon' ? 1.30 : 1.38;
+      const scale=size*Math.min(maxHeight/sourceHeight,maxWidth/sourceWidth);
       const width=sourceWidth*scale, height=sourceHeight*scale;
       if(roster[u.type].hue) g.filter=`hue-rotate(${roster[u.type].hue}deg)`;
       g.save();
@@ -705,6 +709,7 @@ function drawGuardians(motion) {
       if(strike && Math.cos(u.aim)<0) g.scale(-1,1);
       if(!strike && motion && shot) g.rotate(Math.cos(u.aim)*shot*.14);
       g.drawImage(image,-width/2,-height,width,height);
+      silhouettes.push({left:spriteX-width/2,right:spriteX+width/2,bottom:spriteY+size*.42,height});
       g.restore();
       g.filter='none';
     } else {
@@ -718,21 +723,24 @@ function drawGuardians(motion) {
     g.fillStyle = '#ffe0a0';
     g.fillText('◆'.repeat(u.tier),x,y+size*.49);
   });
+  return silhouettes;
 }
 
-function drawEnemies(motion) {
+function drawEnemies(motion, allySilhouettes) {
   for (const m of mobs) {
     if (m.hp <= 0) continue;
-    const size = m.boss ? (m.model ? (m.enraged ? 100 : 84) : 65) : (m.model ? 49 : 44);
+    const size=m.model
+      ? (m.boss ? Math.min(W*.18,H*.26,m.enraged ? 88 : 73) : Math.min(W*.097,H*.13,43))
+      : (m.boss ? 65 : 44);
     const walking=motion && m.model && m.breakTime<=0;
     const stride=walking ? Math.abs(Math.sin(m.step*Math.PI))*size*.064 : motion && !m.model ? Math.sin(visualTime*13+m.id)*2 : 0;
     g.fillStyle = '#151524ab';
     g.beginPath();
     g.ellipse(m.x,m.y+8,size*.33-stride*.7,5,0,0,Math.PI*2);
     g.fill();
-    if (m.slow>0) {
-      g.strokeStyle = '#99e5ffc4';
-      g.lineWidth = 2;
+    if(m.model || m.slow>0) {
+      g.strokeStyle=m.slow>0 ? '#99e5ffc4' : '#ff667ac9';
+      g.lineWidth=m.boss ? 2 : 1.3;
       g.stroke();
     }
     if (motion && m.flash>visualTime) g.filter = 'brightness(1.55)';
@@ -742,7 +750,13 @@ function drawEnemies(motion) {
     const scale=Math.min(size/sw,size/sh);
     if(m.model) {
       g.save();
-      g.translate(m.x,m.y+8-stride);
+      const left=m.x-sw*scale/2, right=m.x+sw*scale/2;
+      const bottom=m.y+8-stride, top=bottom-sh*scale;
+      if(allySilhouettes.some(ally=>left<ally.right && right>ally.left &&
+          top<ally.bottom && bottom>ally.bottom-ally.height)) {
+        g.globalAlpha=m.boss ? .64 : .48;
+      }
+      g.translate(m.x,bottom);
       g.scale(m.facing<0?-1:1,1);
       if(walking) {
         g.rotate(Math.sin(m.step*Math.PI)*.085);
@@ -835,8 +849,8 @@ function draw() {
     g.arc(slowField.x,slowField.y,81,0,Math.PI*2);
     g.fillStyle='#80aaff33';g.fill();g.strokeStyle='#95d7ffc0';g.lineWidth=2;g.stroke();
   }
-  drawGuardians(motion);
-  drawEnemies(motion);
+  const allySilhouettes=drawGuardians(motion);
+  drawEnemies(motion,allySilhouettes);
   drawEffects(motion);
   if(motion && fieldImpact>0) {
     g.fillStyle='rgba(255,202,155,'+(fieldImpact*.48)+')';
@@ -942,7 +956,7 @@ function showRecipes() {
     return {recipe,index,ready};
   }).sort((a,b)=>Number(b.ready)-Number(a.ready));
   const buttons=rows.map(({recipe,index,ready})=>`<button class="recipe" data-recipe="${index}" data-ready="${ready}" ${ready?'':'disabled'}><img src="${portraits[recipe.type]}" alt="" style="--portrait-hue:${recipe.hue}deg"><span><b>${recipe.name}</b><small>${roster[recipe.first].name} + ${roster[recipe.second].name}</small><small>${recipe.skill}</small></span><em>${ready?'조합':'재료 부족'}</em></button>`).join('');
-  showModal('<h2>몬스터 조합표</h2><p>서로 다른 동료를 조합하면 두 재료 중 낮은 별 등급으로 태어납니다.</p><label class="recipe-filter"><input id="readyOnly" type="checkbox"> 지금 조합 가능</label><label class="recipe-filter"><input id="recipeSearch" type="search" placeholder="몬스터 또는 재료 이름" aria-label="몬스터 또는 재료를 검색"></label><p id="recipeEmpty" hidden>조건에 맞는 조합이 없습니다.</p><div class="recipes">'+buttons+'</div>');
+  showModal('<h2>동료 조합표</h2><p>서로 다른 동료를 조합하면 두 재료 중 낮은 별 등급으로 태어납니다.</p><label class="recipe-filter"><input id="readyOnly" type="checkbox"> 지금 조합 가능</label><label class="recipe-filter"><input id="recipeSearch" type="search" placeholder="동료 또는 재료 이름" aria-label="동료 또는 재료를 검색"></label><p id="recipeEmpty" hidden>조건에 맞는 조합이 없습니다.</p><div class="recipes">'+buttons+'</div>');
   const updateFilter=()=>{
     const query=$('recipeSearch').value.trim().toLocaleLowerCase();
     const readyOnly=$('readyOnly').checked;

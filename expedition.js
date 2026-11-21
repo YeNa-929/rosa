@@ -76,9 +76,9 @@ const ZundaExpedition = (() => {
 
   const opponents = {
     mender:  {name:'비취 회복병',hp:.92,speed:.92,armor:.10,color:'#b3ff91',shape:0,art:11},
-    scout:   {name:'심연 추적자',hp:1,speed:1,armor:0,color:'#79edca',shape:0},
-    runner:  {name:'잔광 사냥꾼',hp:.62,speed:1.65,armor:0,color:'#ff8cb8',shape:1},
-    shell:   {name:'흑철 파수꾼',hp:1.33,speed:.79,armor:.38,color:'#ffba73',shape:2},
+    scout:   {name:'심연 추적병',hp:1,speed:1,armor:0,color:'#ffb39d',shape:0,portrait:'tracker'},
+    runner:  {name:'잔광 돌격병',hp:.62,speed:1.65,armor:0,color:'#ff8e91',shape:1,portrait:'raider'},
+    shell:   {name:'흑철 방패병',hp:1.33,speed:.79,armor:.38,color:'#ffba73',shape:2,portrait:'shield'},
     wraith:  {name:'공허 망령',hp:1.19,speed:1.12,armor:.14,color:'#c4a7ff',shape:3},
     bastion: {name:'철갑 거신',hp:1,speed:.88,armor:.30,color:'#ffc66e',shape:2},
     herald:  {name:'자색 폭풍룡',hp:1.10,speed:1.08,armor:.15,color:'#dba4ff',shape:3},
@@ -144,9 +144,30 @@ const ZundaExpedition = (() => {
     }
     return canvas;
   }
-  const forms = recipes.map(([first,second,name,effect,color,dmg,rate,range],i) => ({
-    type:i<21 ? i+6 : i+11,hue:[0,20,-35,72,135,-80,165][Math.floor(i/9)] ?? 95,first,second,name,effect,color,dmg,rate,range,projectile:360+(i%4)*25,skill:effects[effect]
-  }));
+  const dragonArt = {
+    21:'dawn-guardian',43:'storm-wyvern',60:'azure-dragon',61:'solar-drake'
+  };
+  const forms = recipes.map(([first,second,name,effect,color,dmg,rate,range],i) => {
+    const type=i<21 ? i+6 : i+11;
+    const dragon=dragonArt[type];
+    return {
+      type,hue:dragon ? 0 : ([0,20,-35,72,135,-80,165][Math.floor(i/9)] ?? 95),
+      first,second,name,effect,color,dmg,rate,range,projectile:360+(i%4)*25,skill:effects[effect],
+      ...(dragon && {portrait:'assets/dragons/'+dragon+'.webp',silhouette:'dragon'})
+    };
+  });
+
+  const heroines = [
+    {type:124,first:15,second:16,name:'새벽검 로사',effect:'burst',color:'#ffaf80',dmg:134,rate:1.06,range:178,slug:'seria'},
+    {type:125,first:18,second:19,name:'서리술사 프패',effect:'frost',color:'#bceaff',dmg:116,rate:1.23,range:182,slug:'rune'},
+    {type:126,first:7,second:20,name:'뇌전궁 소설가',effect:'chain',color:'#91f5ca',dmg:124,rate:1.08,range:191,slug:'tessa'},
+    {type:127,first:14,second:20,name:'월식검 빰',effect:'pierce',color:'#dfb4ff',dmg:146,rate:.98,range:185,slug:'kaela'}
+  ];
+  forms.push(...heroines.map(hero=>({
+    ...hero,hue:0,silhouette:'hero',projectile:410,skill:effects[hero.effect],
+    portrait:'assets/heroines/'+hero.slug+'.webp',
+    attack:'assets/heroines/'+hero.slug+'-attack.webp'
+  })));
 
   const image = src => { const sprite=new Image(); sprite.src=src; return sprite; };
   const beastSrc = index => 'assets/beasts/'+String(index).padStart(2,'0')+'.webp';
@@ -154,9 +175,9 @@ const ZundaExpedition = (() => {
   const backgrounds=['canyon','rift','citadel','moonwell'].map(name=>image('assets/fields/'+name+'.webp'));
   function images() {
     return {
-      familiars:Object.fromEntries(forms.map((f,i)=>[f.type,beastSrc(7+(i%9))])),
+      familiars:Object.fromEntries(forms.map((f,i)=>[f.type,f.portrait ?? beastSrc(7+(i%9))])),
       enemies:Object.fromEntries(Object.entries(opponents).map(([key,o])=>[
-        key,{art:image(beastSrc(o.art ?? enemyKeys.indexOf(key)-1)), fallback:makeSprite(o.color,o.shape,true,['bastion','herald','eclipse','sentinel'].includes(key))}
+        key,{art:image(o.portrait ? 'assets/enemies/'+o.portrait+'.webp' : beastSrc(o.art ?? enemyKeys.indexOf(key)-1)), fallback:makeSprite(o.color,o.shape,true,['bastion','herald','eclipse','sentinel'].includes(key))}
       ]))
     };
   }
