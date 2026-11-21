@@ -311,7 +311,7 @@ body[data-expedition] {
 .unit-fusion-pictures strong, .unit-fusion-pictures small { display:block; font-size:12px; word-break:keep-all; }
 .unit-fusion-pictures small { margin-top:2px; color:#d3e7b2; }
 
-#autoDeploy {
+#autoDeploy, #autoFuse {
   min-height:36px;
   padding:3px 9px;
   color:#eaffce;
@@ -343,7 +343,7 @@ body[data-expedition] {
 #roundflag { white-space:nowrap; }
 [data-expedition] #recon { min-height:38px; padding:4px 10px; font-size:12px; white-space:nowrap; }
 [data-expedition] .battle-orders { margin:6px 0 0; }
-[data-expedition] #reserveTab, [data-expedition] #autoDeploy { min-height:44px; }
+[data-expedition] #reserveTab, [data-expedition] #autoDeploy, [data-expedition] #autoFuse { min-height:44px; }
 .wave-supply {
   margin:0;
   padding:5px 12px;
@@ -425,7 +425,8 @@ body[data-expedition] {
   }
   .battle-sidebar #auto,
   .battle-sidebar #reserveTab,
-  .battle-sidebar #autoDeploy {
+  .battle-sidebar #autoDeploy,
+  .battle-sidebar #autoFuse {
     margin-left:0;
     padding-inline:4px;
     font-size:10px;
@@ -444,3 +445,7 @@ body[data-expedition] {
   .starter-screen #modalTitle { font-size:27px; }
   .starter-screen #modalTitle + p { margin-bottom:5px; }
 }
+
+[data-expedition] #stats { grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px; }
+[data-expedition] #stats .stat { padding-inline:5px; gap:2px; }
+#weaponStones { color:#bcdcff; }

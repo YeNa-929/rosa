@@ -24,8 +24,8 @@
   <script defer src="art.js?v=moonlit-rose-court"></script>
   <script defer src="audio.js?v=battle-score-2"></script>
   <script defer src="expedition.js?v=unit-weapons-1"></script>
-  <script defer src="game.js?v=landscape-1"></script>
-  <link rel="stylesheet" href="zunda.css?v=landscape-1">
+  <script defer src="game.js?v=auto-fusion-1"></script>
+  <link rel="stylesheet" href="zunda.css?v=auto-fusion-1">
 </head>
 <body data-expedition>
   <main id="game">
@@ -40,6 +40,7 @@
       <section id="stats" aria-label="전투 현황">
         <div class="stat wave"><span>웨이브</span><b id="wave">1</b></div>
         <div class="stat gems"><span>보석</span><b id="gems">14</b></div>
+        <div class="stat stones"><span>연마석</span><b id="weaponStones">0</b></div>
         <div class="stat gold"><span>골드</span><b id="gold">60</b></div>
         <div class="stat life"><span>생명</span><b id="life">25</b></div>
       </section>
@@ -62,7 +63,7 @@
     </div>
     <div class="battle-sidebar">
       <section id="roster" aria-label="나의 동료">
-        <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="reserveTab" type="button" aria-pressed="false">대기 0</button><button id="autoDeploy" type="button" title="별 등급과 초당 공격 피해를 기준으로 출전 동료를 편성합니다">자동 배치</button><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
+        <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="reserveTab" type="button" aria-pressed="false">대기 0</button><button id="autoDeploy" type="button" title="별 등급과 초당 공격 피해를 기준으로 출전 동료를 편성합니다">자동 배치</button><button id="autoFuse" type="button" title="지금 가능한 조합을 한 번 실행합니다">자동 조합</button><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
         <div id="cards"></div>
         <p id="autoRecruitFeed" class="auto-recruit-feed" role="status" aria-atomic="true"></p>
       </section>
