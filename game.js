@@ -183,6 +183,17 @@ const regionPads = regionRoutes.map(route=>{
 });
 function reconcileSlots(atEntrance=false) {
   if(!expedition || deploymentPads.length===0) return;
+  const strongestByFamily=new Map();
+  for(const unit of state.units) {
+    const family=roster[unit.type].family;
+    if(unit.reserve || family===undefined) continue;
+    const current=strongestByFamily.get(family);
+    if(current && combatPower(current)>=combatPower(unit)) unit.reserve=true;
+    else {
+      if(current) current.reserve=true;
+      strongestByFamily.set(family,unit);
+    }
+  }
   const used=new Set();
   let remaining=capacity();
   for(const unit of state.units) {
@@ -268,7 +279,9 @@ function unitPos(i) {
 }
 
 function recruit(type) {
-  state.units.push({id:uid++,type,tier:1,reserve:expedition&&deployedCount()>=capacity(),cool:0,born:visualTime});
+  const family=roster[type].family;
+  const alreadyDeployed=family!==undefined && state.units.some(unit=>!unit.reserve && roster[unit.type].family===family);
+  state.units.push({id:uid++,type,tier:1,reserve:expedition && (alreadyDeployed || deployedCount()>=capacity()),cool:0,born:visualTime});
 }
 const choosing = () => state.phase==='draft'||state.phase==='reward';
 function showChoices() {
@@ -1034,7 +1047,14 @@ function autoDeploy() {
     power:combatPower(unit)
   })).sort((a,b)=>b.power-a.power || Number(a.unit.reserve)-Number(b.unit.reserve) ||
     roster[b.unit.type].range-roster[a.unit.type].range || a.unit.id-b.unit.id);
-  const picked=ranked.slice(0,Math.min(capacity(),deploymentPads.length)).map(entry=>entry.unit);
+  const families=new Set();
+  const picked=ranked.filter(({unit})=>{
+    const family=roster[unit.type].family;
+    if(family===undefined) return true;
+    if(families.has(family)) return false;
+    families.add(family);
+    return true;
+  }).slice(0,Math.min(capacity(),deploymentPads.length)).map(entry=>entry.unit);
   const strongest=new Set(picked);
   for(const unit of state.units) {
     if(strongest.has(unit)) continue;
@@ -1084,6 +1104,12 @@ function moveFormation(slot,id=selectedUnit) {
   const unit=state.units.find(item=>item.id===id);
   if(!unit || !deploymentPads[slot] || state.gameover || saveConflict || choosing() || $('modal').open) return false;
   const other=state.units.find(item=>item.slot===slot && item!==unit);
+  const family=roster[unit.type].family;
+  if(unit.reserve && family!==undefined &&
+     state.units.some(item=>!item.reserve && item!==other && roster[item.type].family===family)) {
+    toast('같은 주인공이 이미 출전 중입니다. 그 동료가 있는 칸에 놓아 교체하세요');
+    return false;
+  }
   if(unit.reserve && !other && deployedCount()>=capacity()) {
     toast('출전 한도에 도달했습니다. 배치된 동료와 교체하세요');
     return false;
@@ -1610,6 +1636,7 @@ const release = {
   notes:[
     '다음 웨이브가 시작되면 출전 동료는 현재 입구 위쪽 칸부터 재배치됩니다.',
     '자동 조합을 누를 때마다 보유 재료로 가능한 조합 중 전투력 이득이 가장 큰 한 건을 실행합니다.',
+    '네 주인공은 진화 단계와 관계없이 각각 한 명만 출전합니다. 여분은 대기열에 보관할 수 있습니다.',
     '전용 무기는 연마석으로 강화합니다. 일반 웨이브에서 1개, 보스 웨이브에서 2개를 받습니다.',
     '드래그 도중 화면이 바뀌거나 입력이 끊겨도 동료 그림이 화면에 남지 않습니다.'
   ]
