@@ -53,7 +53,7 @@ const attackSprites = expedition ? new Map([...cast.filter(c=>c.tile || c.attack
 const bossInterval = expedition ? 4 : 5;
 const finalWave = 32;
 const rosterLimit = expedition ? 12 : 18;
-const storageLimit=expedition?40:rosterLimit;
+const storageLimit=expedition?Infinity:rosterLimit;
 let reserveView=false;
 const mergeCount = expedition ? 2 : 3;
 let selectedUnit = null;
@@ -380,10 +380,10 @@ function spawn() {
   const boss=state.wave%bossInterval===0 && state.spawned===waveTotal()-1;
   const kind=expedition ? ZundaExpedition.kind(state.wave,state.spawned,boss) : null;
   const model=kind ? ZundaExpedition.opponents[kind] : null;
-  const base=expedition ? (boss?760:70) : (boss?550:65);
+  const base=expedition ? (boss?960:82) : (boss?550:65);
   const growth=expedition ? Math.pow(1.262,Math.min(15,state.wave-1))*Math.pow(1.145,Math.max(0,state.wave-16)) : Math.pow(1.24,state.wave-1);
   const rules=expedition ? sectorRules[state.contract] : null;
-  // Leave 20+ unchanged; taper the early multiplier so wave 20 still grows over wave 19.
+  // Taper the early multiplier so wave 20 still grows over wave 19.
   const earlyPressure=expedition && state.wave<20
     ? 1+Math.min((state.wave-1)*.03,.18,.09+(19-state.wave)*.025)
     : 1;
@@ -392,7 +392,7 @@ function spawn() {
   const hp=base*growth*(state.elite?1.4:1)*(model?.hp ?? 1)*earlyPressure*(1+pressure)*bossPressure;
   const m={id:uid++,t:0,hp,max:hp,boss,kind,model,armor:(model?.armor??0)+(rules?.armor??0),slow:0,slowFactor:1,
     step:0,lastStep:0,facing:1,healTimer:1.1,
-    speed:(expedition ? (boss?.026:.047) : (boss?.032:.061))*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1)*(rules?.speed??1)*(1+pressure*.2),x:0,y:0};
+    speed:(expedition ? (boss?.029:.051) : (boss?.032:.061))*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1)*(rules?.speed??1)*(1+pressure*.2),x:0,y:0};
   [m.x,m.y]=at(0);
   mobs.push(m);
   state.spawned++;
@@ -720,7 +720,7 @@ if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&stat
     state.spawnTimer=1.25*state.speed;
     announce('경고 · '+ZundaExpedition.opponents[ZundaExpedition.kind(state.wave,state.spawned,true)].name+' 접근 중');
     CourtAudio.bossWarning();
-  } else { spawn();state.spawnTimer=expedition && state.wave>=5 && state.spawned%5!==0 ? Math.max(.21,.64-state.wave*.014) : Math.max(.26,.78-state.wave*.013)}}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
+  } else { spawn();state.spawnTimer=expedition && state.spawned%5!==0 ? Math.max(.18,.60-state.wave*.014) : Math.max(.26,.78-state.wave*.013)}}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
 else{state.breakTimer-=dt;if(state.breakTimer<=0){state.wave++;state.spawned=0;state.spawnTimer=.5;state.phase='wave';announce('🌙 WAVE '+state.wave);persist()}}
 for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}moveEnemy(m,dt);if(m.t>=1){m.hp=-1;const loss=m.boss?(expedition ? state.life : 5):1;if(expedition && !m.boss && state.shield>0){state.shield--;announce('방어막이 돌파를 막았습니다');}else state.life-=loss;if(state.life<=0){state.life=0;end();return}}}
 for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)continue;const t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(combatDistance(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=unitAttackDamage(u)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/unitAttackRate(u)}}
@@ -1427,7 +1427,7 @@ function showMarket() {
   const recruitCost=4+Math.min(3,state.shopCount);
   const expansionCost=7+state.expansions*3;
   const choices=state.shopOffers.map(type=>`<button class="market-recruit" data-market="recruit" data-type="${type}" ${state.units.length>=storageLimit || state.gems<recruitCost?'disabled':''}><img alt="" referrerpolicy="no-referrer" src="${portraits[type]}"><span>${roster[type].name} · ◆ ${recruitCost}</span></button>`).join('');
-  showModal(`<h2>원정 보급소</h2><p>보유 보석 ◆ ${state.gems} · 출전 ${deployedCount()} / ${capacity()} · 보유 ${state.units.length} / ${storageLimit}</p><div class="market-grid">${choices}<button data-market="reroll" ${state.gems<2?'disabled':''}>영입 목록 갱신 · ◆ 2</button><button data-market="expand" ${capacity()>=rosterLimit || state.gems<expansionCost?'disabled':''}>편성 두 자리 확장 · ◆ ${expansionCost}</button></div>`);
+  showModal(`<h2>원정 보급소</h2><p>보유 보석 ◆ ${state.gems} · 출전 ${deployedCount()} / ${capacity()} · 보유 ${state.units.length}명</p><div class="market-grid">${choices}<button data-market="reroll" ${state.gems<2?'disabled':''}>영입 목록 갱신 · ◆ 2</button><button data-market="expand" ${capacity()>=rosterLimit || state.gems<expansionCost?'disabled':''}>편성 두 자리 확장 · ◆ ${expansionCost}</button></div>`);
 }
 function spend(action,type) {
   if(state.gameover || choosing()) return;
@@ -1613,12 +1613,15 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.19',
-  title:'가로 전장 복원',
-  notes:['가로로 돌리면 전장 오른쪽에 조작 버튼이 표시됩니다.']
+  version:'1.20',
+  title:'대기 보관함 확장과 전투 난이도 상향',
+  notes:['대기 동료 수 제한을 해제했습니다. 첫 웨이브부터 적이 더 촘촘히 등장하며 일반 적과 보스의 체력 및 이동 속도가 증가합니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.19',title:'가로 전장 복원',
+  notes:['가로로 돌리면 전장 오른쪽에 조작 버튼이 표시됩니다.']
+  },
   {version:'1.18',title:'전체 화면 전장 너비 수정',
   notes:['동료 카드가 늘어나도 전장과 조작 버튼이 화면 안에 유지됩니다.']
   },
