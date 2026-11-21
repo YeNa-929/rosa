@@ -36,3 +36,23 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 
 .market-recruit { display:flex; align-items:center; gap:8px; }
 .market-recruit img { width:33px; height:36px; object-fit:contain; }
+
+[data-expedition] header { background:linear-gradient(115deg,#163146,#30204b); }
+[data-expedition] #stats, [data-expedition] #boss { background:#17243c; }
+[data-expedition] .stat { background:linear-gradient(#243854,#18273f); border-color:#485a75; }
+[data-expedition] #roster { background:linear-gradient(#23364a,#252640); }
+[data-expedition] dialog { background:linear-gradient(160deg,#22334c,#29233c 80%); border-color:#809ab1; }
+[data-expedition] .panel { padding-top:17px; }
+[data-expedition] .choices.starter-choices { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+[data-expedition] .starter-choices button {
+  display:flex; flex-direction:column; gap:3px; align-items:center; padding:5px 3px;
+  min-height:105px; text-align:center; background:radial-gradient(ellipse at 50% 32%,#3d5568,#27304a);
+  border-color:#688495; color:#f2f8fa;
+}
+[data-expedition] .starter-choices button img { width:100%; height:66px; object-fit:contain; }
+[data-expedition] .starter-choices b { font-size:11px; overflow-wrap:anywhere; line-height:1.25; }
+[data-expedition] .starter-choices small { font-size:9px; line-height:1.15; }
+.recipe img, .formation-card img { filter:hue-rotate(var(--portrait-hue,0deg)); }
+.recipe[hidden] { display:none; }
+.recipe-filter { display:flex; align-items:center; gap:5px; font-size:13px; margin-block:6px; }
+.recipe-filter input[type=search] { width:100%; min-height:39px; font:inherit; color:inherit; padding:6px 9px; background:#20273b; border:1px solid #707c97; border-radius:7px; }
