@@ -56,15 +56,6 @@ body[data-expedition] {
 .recipe-filter { display:flex; align-items:center; gap:5px; font-size:13px; margin-block:6px; }
 .recipe-filter input[type=search] { width:100%; min-height:39px; font:inherit; color:inherit; padding:6px 9px; background:#20273b; border:1px solid #707c97; border-radius:7px; }
 
-#interrupt { display:flex; justify-content:space-between; align-items:center; width:100%; gap:10px; min-height:44px; margin-bottom:6px; padding:4px 10px; font-weight:850; color:#dce7ff; background:#253550; }
-#interrupt small { font-weight:750; color:#cbd7f5; }
-#interrupt.ready { color:#291a1b; border-color:#ffe1ac; background:linear-gradient(115deg,#ffe3a6,#ee9372); box-shadow:0 0 10px #ff967d80; }
-#interrupt.ready small { color:#4b2327; }
-#interrupt.perfect { color:#10271f; border-color:#ddffab; background:linear-gradient(115deg,#e7ffa7,#87efc6); }
-#interrupt.perfect small { color:#164637; }
-#chargeMeter { position:absolute; inset:auto 12px 46px; padding:8px; background:#291a31f2; border:1px solid #f5a986; border-radius:8px; color:#ffe6c7; font-size:12px; pointer-events:none; }
-#chargeMeter div { height:4px; margin-top:5px; border-radius:3px; overflow:hidden; background:#613749; }
-#chargeFill { display:block; height:100%; background:#ffb287; }
 
 #placement { position:absolute; inset:0; z-index:2; pointer-events:none; }
 #placement[hidden] { display:none; }
@@ -100,10 +91,9 @@ body[data-expedition] {
 [data-expedition] .formation-card { grid-template-columns:40px 1fr; flex-basis:120px; }
 [data-expedition] .formation-card img { width:40px; height:44px; }
 
-.battle-orders { display:grid; grid-template-columns: .92fr 1.08fr; gap:6px; margin-bottom:6px; }
-.battle-orders #interrupt { margin-bottom:0; }
+.battle-orders { display:grid; grid-template-columns:1fr; gap:6px; margin-bottom:6px; }
 #tactics { min-height:44px; padding:4px 6px; display:flex; justify-content:space-between; gap:4px; align-items:center; background:linear-gradient(#28446b,#233452); font-weight:800; }
-#tactics small, .battle-orders #interrupt small { font-size:10px; }
+#tactics small { font-size:10px; }
 #tactics[aria-pressed=true] { border-color:#88ffe7; color:#b5fff1; }
 #aimHint { position:absolute; inset:auto 12px 45px; pointer-events:none; padding:6px 8px; color:#d5fffb; background:#163b4dee; border:1px solid #8effdc; border-radius:7px; font-size:12px; z-index:2; }
 
@@ -436,13 +426,7 @@ body[data-expedition] {
 @media (orientation:landscape) and (max-height:430px) {
   [data-expedition] #game > header h1 small { display:none; }
   .battle-sidebar .section-title button { font-size:10px; }
-  .battle-sidebar #interrupt {
-    display:grid;
-    align-content:center;
-    justify-items:start;
-    line-height:1.15;
-    gap:2px;
-  }
+
   .battle-sidebar #cards { min-height:54px; }
   .battle-sidebar .formation-card { min-height:44px; }
   .battle-sidebar .formation-card img { height:36px; }
@@ -453,3 +437,53 @@ body[data-expedition] {
 [data-expedition] #stats { grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px; }
 [data-expedition] #stats .stat { padding-inline:5px; gap:2px; }
 #weaponStones { color:#bcdcff; }
+
+[data-expedition] dialog.live-panel {
+  position:fixed;
+  inset:12px 10px auto;
+  margin:0 0 0 auto;
+  max-height:60dvh;
+  box-shadow:0 6px 22px #09070e90;
+}
+#fullscreen[aria-pressed=true] { border-color:#c9e898; color:#e7f6b7; }
+@media (max-width:360px) { [data-expedition] header h1 small { display:none; } }
+
+@media (orientation:portrait), (max-width:567px) {
+  [data-expedition].fit-screen #game {
+    display:grid;
+    grid-template-rows:auto auto minmax(0,1fr) auto;
+    height:100dvh;
+  }
+  .fit-screen #saveNotice { grid-row:2; }
+  .fit-screen .battlefield-layout {
+    grid-row:3;
+    min-height:0;
+    display:grid;
+    grid-template-rows:auto auto minmax(0,1fr) auto;
+  }
+  .fit-screen #stage { min-height:0; }
+  .fit-screen .battle-sidebar { grid-row:4; display:block; }
+  .fit-screen #boss { padding-block:2px; }
+  .fit-screen footer {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:4px;
+    padding:4px;
+  }
+  .fit-screen footer > div { margin:0; gap:3px; }
+  .fit-screen footer button { min-height:44px; padding-inline:2px; font-size:10px; }
+  .fit-screen .battle-sidebar .zunda-credit { display:none; }
+  .fit-screen #waveSupply, .fit-screen #autoRecruitFeed { font-size:10px; }
+}
+@media (orientation:landscape) and (min-width:568px) {
+  .fit-screen .battle-sidebar footer {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    align-content:start;
+    gap:4px;
+    padding:4px;
+  }
+  .fit-screen .battle-sidebar footer > div { margin:0; gap:3px; }
+  .fit-screen .battle-sidebar footer button { min-height:44px; padding-inline:2px; font-size:10px; }
+  .fit-screen .battle-sidebar .zunda-credit { display:none; }
+}

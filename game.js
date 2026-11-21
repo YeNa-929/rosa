@@ -60,9 +60,9 @@ let selectedUnit = null;
 let deploymentPads=[], preferredDeploymentSlots=[];
 let cancelFormationDrag=()=>{};
 let command=null, slowField=null;
-let breaking=null, fieldImpact=0;
+let battleStarted=false, fieldImpact=0;
 let bossWarningWave=0;
-const breakWindow=3.6;
+
 const keepPhase = phase => expedition && ['draft','reward'].includes(phase) ? phase : 'wave';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let combatScaleX=1, combatScaleY=1;
@@ -100,17 +100,17 @@ function restore() {
     mobs=encounter.enemies.flatMap(enemy=>{
       const model=ZundaExpedition.opponents[enemy.kind];
       if(!model || !Number.isFinite(enemy.t) || enemy.hp<=0) return [];
-      return [{...enemy,model,x:0,y:0,flash:0,healUntil:0}];
+      const {warded,wardFloor,breakTime,rearm,secondWard,...active}=enemy;
+      return [{...active,model,x:0,y:0,flash:0,healUntil:0}];
     });
     const targets=new Map(mobs.map(enemy=>[enemy.id,enemy]));
     bullets=encounter.shots.flatMap(shot=>targets.has(shot.targetId) && roster[shot.type]
       ? [{...shot,target:targets.get(shot.targetId),x:shot.x*W,y:shot.y*H}] : []);
-    breaking=mobs.find(enemy=>enemy.warded&&enemy.breakTime>0) ?? null;
     slowField=encounter.zone ? {...encounter.zone,x:encounter.zone.x*W,y:encounter.zone.y*H} : null;
     uid=Math.max(uid,1+Math.max(0,...mobs.map(enemy=>enemy.id)));
     return result;
   } catch {
-    mobs=[];bullets=[];breaking=null;slowField=null;
+    mobs=[];bullets=[];slowField=null;
     return defaults;
   }
 }
@@ -290,29 +290,16 @@ function recruit(type) {
 }
 const choosing = () => state.phase==='draft'||state.phase==='reward';
 function showChoices() {
-  const draft = state.phase==='draft';
-  const options=draft ? ZundaExpedition.rookies.map(character=>character.type) : ['standard','rush','armor'];
-  const buttons=options.map(i=>{
-    const title=draft ? roster[i].name : sectorRules[i].title;
-    const detail=draft ? '기본형 · '+roster[i].skill : sectorRules[i].detail;
-    const art=draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
-    return `<button data-choice="${i}" ${draft ? `style="--starter-accent:${roster[i].color}"` : ''}>${art}<b>${title}</b><small>${detail}${draft ? '<span class="starter-weapon">전용 무기 '+roster[i].gear.name+'</span>' : ''}</small></button>`;
-  });
-  showModal(`<h2>${draft?'첫 동료를 선택하세요':'다음 구역의 작전을 고르세요'}</h2><p>${draft?'네 명 중 한 명과 원정을 시작하세요. 각 동료의 고유 능력은 상위 조합 후에도 이어집니다.':'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.'}</p><div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
-  $('modal').classList.toggle('starter-screen',draft);
+  const buttons=ZundaExpedition.rookies.map(unit=>`<button data-choice="${unit.type}" style="--starter-accent:${unit.color}"><img src="${portraits[unit.type]}" alt=""><b>${unit.name}</b><small>기본형 · ${unit.skill}<span class="starter-weapon">전용 무기 ${unit.gear.name}</span></small></button>`).join('');
+  showModal(`<h2>첫 동료를 선택하세요</h2><p>네 명 중 한 명과 원정을 시작하세요. 고유 능력은 상위 조합 후에도 이어집니다.</p><div class="choices starter-choices">${buttons}</div>`);
+  $('modal').classList.add('starter-screen');
   $('close').hidden=true;
   const choices=$('modalBody').querySelectorAll('[data-choice]');
   for(const button of choices) button.onclick=()=>{
-    if(!choosing()) return;
-    if(draft) {
-      recruit(Number(button.dataset.choice));
-      state.phase='wave';
-      state.spawnTimer=.9;
-    } else {
-      state.contract=button.dataset.choice;
-      if(state.contract==='standard') state.life=Math.min(25,state.life+4);
-      advanceExpeditionWave();
-    }
+    if(state.phase!=='draft') return;
+    recruit(Number(button.dataset.choice));
+    state.phase='wave';
+    state.spawnTimer=.9;
     $('modal').classList.remove('starter-screen');
     $('close').hidden=false;
     closeModal();
@@ -327,7 +314,6 @@ const sectorRules={
   rush:{title:'가속 전선',detail:'적 이동 +18% · 매 웨이브 보석 +4',speed:1.18,armor:0,gems:4,gold:0},
   armor:{title:'철갑 전선',detail:'적 장갑 +12%p · 매 웨이브 골드 +55',speed:1,armor:.12,gems:0,gold:55}
 };
-const sectorOffer=()=>expedition && state.phase==='reward' && state.wave%bossInterval===0;
 function advanceExpeditionWave() {
   cancelFormationDrag();
   const previous=ZundaExpedition.region(state.wave);
@@ -377,11 +363,8 @@ function clearWave() {
     state.cleared=true;
     end();
     return;
-  } else if(state.wave%bossInterval===0) {
-    reportWaveSupplies(state.wave,gems,gold,stones);
-    state.phase='reward';
-    showChoices();
   } else {
+    if(state.wave%bossInterval===0) state.contract='none';
     continueWithSupplies(gems,gold,stones);
   }
   persist();
@@ -404,9 +387,8 @@ function spawn() {
     ? 1+Math.min((state.wave-1)*.03,.18,.09+(19-state.wave)*.025)
     : 1;
   const hp=base*growth*(state.elite?1.4:1)*(model?.hp ?? 1)*earlyPressure;
-  const warded=expedition && state.spawned===waveTotal()-1 && (boss || state.wave%3===2);
   const m={id:uid++,t:0,hp,max:hp,boss,kind,model,armor:(model?.armor??0)+(rules?.armor??0),slow:0,slowFactor:1,
-    warded,wardFloor:.48,breakTime:0,rearm:.29,step:0,lastStep:0,facing:1,healTimer:1.1,
+    step:0,lastStep:0,facing:1,healTimer:1.1,
     speed:(expedition ? (boss?.026:.047) : (boss?.032:.061))*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1)*(rules?.speed??1),x:0,y:0};
   [m.x,m.y]=at(0);
   mobs.push(m);
@@ -426,23 +408,16 @@ function summon(silent=false) {
   const r=Math.random(), type=expedition ? drawRecruit(r) : r<.26?0:r<.48?1:r<.69?2:r<.85?3:r<.96?4:5;
   recruit(type);
   refresh();
-  if(silent && expedition) {
+  if(expedition) {
     const unit=state.units.at(-1);
-    $('autoRecruitFeed').textContent='자동 소환 · '+roster[type].name+' · '+(unit.reserve?'대기 편성':'출전 편성');
+    $('autoRecruitFeed').textContent=(silent?'자동 소환 · ':'영입 · ')+roster[type].name+' · '+(unit.reserve?'대기 편성':'출전 편성');
   }
   if(!silent) {
     persist();
     beep(720);
-    if(expedition && !saveConflict) showRecruitResult(state.units.at(-1));
-    else if(!expedition) toast(roster[type].name+' 영입!');
+    if(!expedition) toast(roster[type].name+' 영입!');
   }
   return true;
-}
-function showRecruitResult(unit,fromMarket=false) {
-  const {type,tier,reserve}=unit;
-  showModal(`<h2>새 동료 영입</h2><div class="recruit-result"><img src="${portraits[type]}" alt=""><strong>${roster[type].name} · ★${tier}</strong><p>${reserve?'대기 명단에 들어갔습니다.':'전투 편성에 합류했습니다.'}</p><button id="acceptRecruit">${fromMarket?'보급소로 돌아가기':'확인'}</button></div>`);
-  $('acceptRecruit').onclick=fromMarket ? showMarket : closeModal;
-  $('acceptRecruit').focus();
 }
 function mergeCompanions(materials,anchor) {
   const ids=new Set(materials.map(unit=>unit.id));
@@ -475,7 +450,6 @@ function refresh() {
   const s = state;
   updateCommand();
   reconcileSlots();
-  updateBreakControls();
   $('wave').textContent = s.wave;
   $('gems').textContent = s.gems;
   if(expedition) $('weaponStones').textContent=s.weaponStones;
@@ -530,7 +504,7 @@ function restart() {
 function resetRun() {
   state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;
   if(expedition) {syncFocus();resize();$('autoRecruitFeed').textContent='';$('waveSupply').textContent='';}
-  mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;bossWarningWave=0;
+  mobs=[];bullets=[];particles=[];fieldImpact=0;bossWarningWave=0;
   uid=1;rosterKey=undefined;spellFlash=0;autosummonTimer=0;saveTimer=0;
   $('game').classList.remove('over');
   $('modal').close();
@@ -542,6 +516,7 @@ function resetRun() {
   }
 }
 let modalBack=null;
+const blockingPanel=()=>$('modal').matches(':modal');
 function showModal(html) {
   cancelFormationDrag();
   modalBack=null;
@@ -549,7 +524,14 @@ function showModal(html) {
   $('close').hidden = false;
   $('modalBody').innerHTML = html;
   $('modalBody').querySelector('h2').id = 'modalTitle';
-  if (!$('modal').open) $('modal').showModal();
+  const panel=$('modal');
+  const live=expedition && battleStarted && !choosing() && !state.gameover;
+  if(panel.open && blockingPanel()===live) panel.close();
+  panel.classList.toggle('live-panel',live);
+  if(!panel.open) {
+    if(live) panel.show();
+    else panel.showModal();
+  }
 }
 function closeModal() { if(!choosing()) $('modal').close(); }
 if(expedition) $('modal').addEventListener('cancel',event=>{
@@ -581,15 +563,7 @@ function showCodex() { showModal((expedition?'<h2>원정대 도감</h2>':'<h2>�
 if(!expedition) $('codex').onclick=showCodex;
 function damageMob(m, damage, color, life = .27, radius = 17) {
   if (m.hp <= 0) return;
-  m.hp=m.warded ? Math.min(m.hp,Math.max(m.max*m.wardFloor,m.hp-damage)) : m.hp-damage;
-  if(m.model && m.boss && !m.warded && !m.secondWard && m.hp<=m.max*.44) {
-    m.secondWard=true;
-    m.warded=true;
-    m.wardFloor=.16;
-    m.hp=Math.max(m.hp,m.max*.16);
-    m.rearm=Math.min(.91,m.t+.045);
-    announce(m.model.name+' · 방패 재생');
-  }
+  m.hp-=damage;
   m.flash = visualTime + .13;
   particles.push({x:m.x,y:m.y,life,duration:life,radius,color});
   if (m.hp > 0) {
@@ -640,45 +614,6 @@ function hit(m, damage, source) {
       }
     }
   }
-}
-
-function updateBreakControls() {
-  if(!expedition) return;
-  const ready=!!breaking && !state.paused && !state.gameover && !$('modal').open;
-  $('interrupt').disabled=!ready;
-  $('interrupt').classList.toggle('ready',ready);
-  $('interruptStatus').textContent=ready ? breaking.breakTime.toFixed(1)+'초 · '+(breaking.breakTime<=1.15?'완벽 저지!':'방패 파괴') : '돌진 예고에 사용';
-  $('interrupt').classList.toggle('perfect',ready && breaking.breakTime<=1.15);
-  $('chargeMeter').hidden=!breaking || state.gameover;
-  if(!$('chargeMeter').hidden) {
-    $('chargeLabel').textContent=breaking.boss ? '보스 돌진 · 저지하세요!' : '파수대 돌진 · 저지하세요!';
-    $('chargeFill').style.width=Math.min(100,100*breaking.breakTime/breakWindow)+'%';
-  }
-}
-
-function interrupt() {
-  if(!breaking || state.paused || state.gameover || $('modal').open) return;
-  const enemy=breaking;
-  const perfect=enemy.breakTime<=1.15;
-  breaking=null;
-  enemy.warded=false;
-  enemy.breakTime=0;
-  enemy.slow=2.4;
-  enemy.slowFactor=.38;
-  damageMob(enemy,enemy.max*(perfect?.32:.23),'#7fffe5',.54,38);
-  if(perfect) {
-    state.gems++;
-    for(const other of mobs) {
-      if(other!==enemy && combatDistance(other.x-enemy.x,other.y-enemy.y)<94) {
-        damageMob(other,enemy.max*.09,'#ffc47f',.42,26);
-      }
-    }
-  }
-  fieldImpact=perfect?.32:.24;
-  announce(perfect?'완벽 저지! 충격파 · 보석 +1':'돌진 저지! 방패 파괴');
-  beep(perfect?560:220,.18);
-  persist();
-  updateBreakControls();
 }
 
 function updateCommand() {
@@ -746,26 +681,8 @@ function supportPulse(m,dt) {
 function moveEnemy(m,dt) {
   supportPulse(m,dt);
   const oldX=m.x,oldY=m.y;
-  if(m.warded && m.breakTime>0) {
-    m.breakTime-=dt/state.speed;
-    if(m.breakTime<=0) {
-      breaking=null;
-      m.t+=m.boss ? .25 : .31;
-      m.rearm=m.t+.08;
-      fieldImpact=.28;
-      announce('저지 실패 · 적이 돌진합니다!');
-      beep(110,.24);
-    }
-  } else {
-    const fieldSlow=slowField && combatDistance(m.x-slowField.x,m.y-slowField.y)<81 ? .43 : 1;
-    m.t+=m.speed*Math.min(m.slowFactor,fieldSlow)*dt;
-    if(m.warded && m.t>=m.rearm && m.t<.92) {
-      m.breakTime=breakWindow;
-      breaking=m;
-      announce('돌진 예고 · 저지 버튼을 누르세요!');
-      beep(330,.15);
-    }
-  }
+  const fieldSlow=slowField && combatDistance(m.x-slowField.x,m.y-slowField.y)<81 ? .43 : 1;
+  m.t+=m.speed*Math.min(m.slowFactor,fieldSlow)*dt;
   [m.x,m.y]=at(m.t);
   if(!m.model) return;
   if(Math.abs(m.x-oldX)>.1) m.facing=Math.sign(m.x-oldX);
@@ -786,7 +703,7 @@ function unitAttackRate(unit) {
 }
 
 function update(dt){toastTimer-=dt;annTimer-=dt;if(toastTimer<=0)$('toast').style.opacity=0;if(annTimer<=0)$('announcement').style.opacity=0;
-if(!path||state.paused||saveConflict||state.gameover||choosing()||$('modal').open)return;
+if(!path||state.paused||saveConflict||state.gameover||choosing()||blockingPanel())return;
 visualTime += dt;
 spellFlash = Math.max(0, spellFlash-dt);
 fieldImpact=Math.max(0,fieldImpact-dt/state.speed);
@@ -802,7 +719,7 @@ if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&stat
     CourtAudio.bossWarning();
   } else { spawn();state.spawnTimer=expedition && state.wave>=5 && state.spawned%5!==0 ? Math.max(.21,.64-state.wave*.014) : Math.max(.26,.78-state.wave*.013)}}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
 else{state.breakTimer-=dt;if(state.breakTimer<=0){state.wave++;state.spawned=0;state.spawnTimer=.5;state.phase='wave';announce('🌙 WAVE '+state.wave);persist()}}
-for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}moveEnemy(m,dt);if(m.t>=1){m.hp=-1;const loss=m.boss?(expedition ? state.life : 5):m.warded?8:1;if(expedition && !m.boss && state.shield>0){state.shield--;announce('방어막이 돌파를 막았습니다');}else state.life-=loss;if(state.life<=0){state.life=0;end();return}}}
+for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}moveEnemy(m,dt);if(m.t>=1){m.hp=-1;const loss=m.boss?(expedition ? state.life : 5):1;if(expedition && !m.boss && state.shield>0){state.shield--;announce('방어막이 돌파를 막았습니다');}else state.life-=loss;if(state.life<=0){state.life=0;end();return}}}
 for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)continue;const t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(combatDistance(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=unitAttackDamage(u)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/unitAttackRate(u)}}
 for(const b of bullets){if(b.target.hp<=0){b.dead=true;continue}const dx=b.target.x-b.x,dy=b.target.y-b.y,d=combatDistance(dx,dy);if(d<=Math.max(13,b.speed*dt)){hit(b.target,b.damage,b);b.dead=true}else{const step=Math.min(d,b.speed*dt);b.x+=dx/d*step;b.y+=dy/d*step}}
 bullets=bullets.filter(b=>!b.dead);mobs=mobs.filter(m=>m.hp>0);particles.forEach(p=>p.life-=dt);particles=particles.filter(p=>p.life>0);
@@ -899,7 +816,7 @@ function drawEnemies(motion, allySilhouettes) {
     const size=m.model
       ? (m.boss ? Math.min(W*.18,H*.26,m.enraged ? 88 : 73) : Math.min(W*.097,H*.13,43))
       : (m.boss ? 65 : 44);
-    const walking=motion && m.model && m.breakTime<=0;
+    const walking=motion && m.model;
     const stride=walking ? Math.abs(Math.sin(m.step*Math.PI))*size*.064 : motion && !m.model ? Math.sin(visualTime*13+m.id)*2 : 0;
     g.fillStyle = '#151524ab';
     g.beginPath();
@@ -931,14 +848,6 @@ function drawEnemies(motion, allySilhouettes) {
       }
       g.drawImage(sprite,-sw*scale/2,-sh*scale,sw*scale,sh*scale);
       g.restore();
-      if(m.warded) {
-        g.filter='none';
-        g.lineWidth=m.breakTime>0?3:1.6;
-        g.strokeStyle=m.breakTime>0?'#ffb799':'#9dbaff';
-        g.beginPath();
-        g.ellipse(m.x,m.y-size*.25,size*.48,size*.42,0,0,Math.PI*2);
-        g.stroke();
-      }
     } else g.drawImage(sprite,m.x-sw*scale/2,m.y-sh*scale*.62+stride,sw*scale,sh*scale);
     g.filter = 'none';
     const width = m.boss ? 40 : 26;
@@ -1011,7 +920,7 @@ function drawEffects(motion) {
 function draw() {
   if (!terrain) return;
   g.drawImage(terrain,0,0,W,H);
-  const motion = !reducedMotion.matches && !state.paused && !$('modal').open;
+  const motion = !reducedMotion.matches && !state.paused && !blockingPanel();
   if(slowField) {
     g.beginPath();
     g.ellipse(slowField.x,slowField.y,81*combatScaleX,81*combatScaleY,0,0,Math.PI*2);
@@ -1034,7 +943,7 @@ function frame(now) {
   const track=expedition && (mobs.some(enemy=>enemy.boss && enemy.hp>0)
     || (bossWarningWave===state.wave && state.spawned===waveTotal()-1)) ? 'boss'
     : expedition && state.wave>16 ? 'deep' : expedition && state.wave>4 ? 'rift' : 'opening';
-  CourtAudio.sync(!state.paused && !state.gameover && !$('modal').open && !document.hidden,track);
+  CourtAudio.sync(!state.paused && !state.gameover && !blockingPanel() && !document.hidden,track);
   if (now >= nextRefresh) {
     refresh();
     nextRefresh = now + 125;
@@ -1459,11 +1368,17 @@ function trainUnit(unit) {
   unit.tier++;
   return true;
 }
-function benchUnit(id) {
+function benchUnit(id,confirmed=false) {
   const unit=state.units.find(candidate=>candidate.id===id);
   if(!unit || state.gameover || saveConflict || choosing()) return;
   if(unit.reserve) {
-    if(!confirm(roster[unit.type].name+'을(를) 대기열에서 내보낼까요?')) return;
+    if(!confirmed) {
+      showModal(`<h2>동료 내보내기</h2><p>${roster[unit.type].name}을(를) 대기열에서 내보내고 보석 1개를 받습니다.</p><div class="title-menu"><button id="cancelReleaseUnit">돌아가기</button><button id="releaseUnit" class="danger">내보내기</button></div>`);
+      modalBack=() => showUnitRecipes(id);
+      $('cancelReleaseUnit').onclick=modalBack;
+      $('releaseUnit').onclick=()=>benchUnit(id,true);
+      return;
+    }
     state.units=state.units.filter(candidate=>candidate!==unit);
     state.gems++;
     toast('동료를 내보냈습니다 · 보석 +1');
@@ -1531,8 +1446,8 @@ function spend(action,type) {
   refresh();
   persist();
   if(saveConflict) return;
-  if(action==='recruit') showRecruitResult(state.units.at(-1),true);
-  else showMarket();
+  if(action==='recruit') toast(roster[type].name+' 영입 완료');
+  showMarket();
 }
 const reconNotes={
   runner:'빠르게 이동합니다. 결빙 지대나 범위 공격을 준비하세요.',
@@ -1550,7 +1465,7 @@ function showRecon() {
     groups[kind]=(groups[kind]??0)+1;
   }
   const entries=Object.entries(groups).map(([kind,quantity])=>
-    `<li><b>${ZundaExpedition.opponents[kind].name} ×${quantity}</b> · ${reconNotes[kind]??'돌진 예고에 저지를 누르세요. 방패가 한 번 재생됩니다.'}</li>`).join('');
+    `<li><b>${ZundaExpedition.opponents[kind].name} ×${quantity}</b> · ${reconNotes[kind]??'체력이 줄면 공격 유형에 따라 방어력 또는 속도가 올라갑니다.'}</li>`).join('');
   showModal(`<h2>${wave}웨이브 정찰</h2><p>${count}마리 · ${ZundaExpedition.region(wave).name}</p><ul>${entries}</ul>`);
 }
 function syncFocus() {
@@ -1560,10 +1475,25 @@ function syncFocus() {
 }
 syncSoundButton();
 if(expedition) {
-  $('interrupt').onclick=interrupt;
   $('recon').onclick=showRecon;
   $('reloadSave').onclick=()=>location.reload();
   $('tactics').onclick=openCommands;
+  const screenButton=$('fullscreen');
+  function fitScreen(enabled) {
+    document.body.classList.toggle('fit-screen',enabled);
+    screenButton.setAttribute('aria-pressed',enabled);
+    screenButton.setAttribute('aria-label',enabled?'전체 화면 종료':'전체 화면');
+  }
+  screenButton.onclick=async()=>{
+    if(document.body.classList.contains('fit-screen')) {
+      fitScreen(false);
+      try { if(document.fullscreenElement) await document.exitFullscreen(); } catch {}
+    } else {
+      fitScreen(true);
+      try { await document.documentElement.requestFullscreen?.(); } catch {}
+    }
+  };
+  document.addEventListener('fullscreenchange',()=>fitScreen(!!document.fullscreenElement));
   installFormationDrag();
   canvas.addEventListener('click',event=>{
     if(command) fireCommand(event);
@@ -1601,14 +1531,16 @@ if(expedition) {
   });
   $('focus').onclick=()=>{state.targetPriority=({lead:'support',support:'boss',boss:'lead'})[state.targetPriority];state.bossFocus=state.targetPriority==='boss';syncFocus();persist();};
   $('help').onclick=()=>{
-    showModal('<h2>원정 방법</h2><p>동료 카드나 전장 캐릭터를 눌러 별 훈련, 무기 강화, 같은 동료 별 합성과 조합·진화를 할 수 있습니다. 보급소에서는 동료를 골라 영입하거나 편성을 확장합니다. 전술 지령은 웨이브마다 포격·결빙·방어막에 쓸 포인트 2개를 줍니다. 회복병이 섞이면 회복병 우선을 켜세요. 전장의 동료나 카드를 드래그해 배치 칸으로 옮기세요. 동료가 있는 칸에 놓으면 자리를 교체합니다. 동료를 누르면 가능한 조합·진화를 확인할 수 있습니다. 4웨이브마다 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p><button id="openExpeditionCodex" type="button">원정대 도감</button>');
+    showModal('<h2>원정 방법</h2><p>동료 카드나 전장 캐릭터를 눌러 별 훈련, 무기 강화, 같은 동료 별 합성과 조합·진화를 할 수 있습니다. 보급소에서는 동료를 골라 영입하거나 편성을 확장합니다. 전술 지령은 웨이브마다 포격·결빙·방어막에 쓸 포인트 2개를 줍니다. 회복병이 섞이면 회복병 우선을 켜세요. 전장의 동료나 카드를 드래그해 배치 칸으로 옮기세요. 동료가 있는 칸에 놓으면 자리를 교체합니다. 동료를 누르면 가능한 조합·진화를 확인할 수 있습니다. 4웨이브마다 보스가 등장합니다. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p><button id="openExpeditionCodex" type="button">원정대 도감</button>');
     $('openExpeditionCodex').onclick=showCodex;
   };
   syncFocus();
 }
 function enterGame() {
+  battleStarted=true;
   if(state.gameover) end();
-  else if(expedition && state.phase==='reward' && !sectorOffer()) {
+  else if(expedition && state.phase==='reward') {
+    if(state.wave%bossInterval===0) state.contract='none';
     continueWithSupplies();
     refresh();
     persist();
@@ -1620,6 +1552,7 @@ function enterGame() {
 }
 
 function showTitleScreen() {
+  battleStarted=false;
   refresh();
   const dialog=$('modal');
   dialog.classList.add('title-screen');
@@ -1636,16 +1569,15 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.11',
-  title:'넓어진 전장과 한 줄 동료 메뉴',
-  notes:[
-    '자동 배치, 자동 조합, 자동 소환 버튼을 화면 너비에 맞춰 한 줄에 배치합니다.',
-    '세로 화면에서는 전장이 더 높고, 가로 화면에서는 전장이 더 넓습니다.',
-    '고해상도 화면에서 전장 그림을 더 선명하게 표시합니다.'
-  ]
+  version:'1.12',
+  title:'끊김 없는 전투와 전체 화면',
+  notes:['전투 중 동료 성장, 조합, 보급소를 열어도 전투가 계속됩니다. 웨이브마다 자동으로 보급을 받습니다.',
+    '돌진 저지와 무적 방패를 없앴습니다. 보스와 파수대도 일반 공격으로 처치할 수 있습니다.',
+    '전체 화면 버튼으로 전장과 조작부를 화면에 맞출 수 있습니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.11',title:'넓어진 전장과 한 줄 동료 메뉴',notes:['동료 버튼을 한 줄에 맞추고 전장과 렌더링 해상도를 개선했습니다.']},
   {version:'1.10',title:'입구 재배치, 자동 조합과 연마석',notes:['웨이브마다 입구로 다시 배치하고, 자동 조합은 한 번 누를 때 한 건을 실행합니다. 무기 강화에는 연마석을 쓰며, 주인공은 각각 한 명만 출전합니다. 드래그 중단도 처리합니다.']},
   {version:'1.9',title:'가로 모드',notes:['가로 화면에서 전장은 왼쪽, 동료와 조작 버튼은 오른쪽에 표시되며 화면을 돌려도 전투 진행과 배치가 유지됩니다.']},
   {version:'1.8',title:'동료 성장과 간결해진 전투 화면',notes:['동료 메뉴에 성장과 배치를 모으고, 네 주인공의 5단 진화와 전용 공격 자세를 추가했습니다. 신규 동료는 입구 위쪽에 먼저 배치됩니다.']},
