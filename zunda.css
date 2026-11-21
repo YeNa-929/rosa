@@ -482,3 +482,13 @@ body[data-expedition].fit-screen.landscape-layout .battle-sidebar footer {
 body[data-expedition].fit-screen.landscape-layout .battle-sidebar footer > div { margin:0; gap:3px; }
 body[data-expedition].fit-screen.landscape-layout .battle-sidebar footer button { min-height:44px; padding-inline:2px; font-size:10px; }
 body[data-expedition].fit-screen.landscape-layout .battle-sidebar .zunda-credit { display:none; }
+
+body[data-expedition].fit-screen { overflow:hidden; }
+body[data-expedition].fit-screen #game {
+  position:fixed;
+  inset:0;
+  margin-inline:auto;
+  height:100dvh;
+  min-height:0;
+  overflow:hidden;
+}
