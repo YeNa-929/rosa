@@ -251,14 +251,14 @@ const choosing = () => state.phase==='draft'||state.phase==='reward';
 function showChoices() {
   const draft = state.phase==='draft';
   const contract=sectorOffer();
-  const options = draft ? cast.map(character=>character.type) : contract ? ['standard','rush','armor'] : state.offers;
+  const options = draft ? ZundaExpedition.rookies.map(character=>character.type) : contract ? ['standard','rush','armor'] : state.offers;
   const buttons = options.map(i => {
     const title = draft ? roster[i].name : contract ? sectorRules[i].title : supplies[i][0];
-    const detail = draft ? (roster[i].starter ? '기본형 · ' : '')+roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
+    const detail = draft ? '기본형 · '+roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
     const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
     return `<button data-choice="${i}">${art}<b>${title}</b><small>${detail}</small></button>`;
   });
-  showModal(`<h2>${draft?'첫 동료를 선택하세요':contract?'다음 구역의 작전을 고르세요':'원정 보급품을 고르세요'}</h2><p>${draft?'동료를 영입하고 같은 동료·등급 두 명을 합쳐 32웨이브까지 돌파하세요.':contract?'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
+  showModal(`<h2>${draft?'첫 동료를 선택하세요':contract?'다음 구역의 작전을 고르세요':'원정 보급품을 고르세요'}</h2><p>${draft?'네 명 중 한 명과 원정을 시작하세요. 각 동료의 고유 능력은 상위 조합 후에도 이어집니다.':contract?'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
   $('close').hidden=true;
   const choices=$('modalBody').querySelectorAll('[data-choice]');
   for(const button of choices) button.onclick=()=>{
@@ -405,16 +405,38 @@ function refresh() {
 }
 
 function end(){state.gameover=true;state.paused=true;refresh();persist();$('game').classList.toggle('over',!state.cleared);showModal(`<h2>${state.cleared?'원정 성공!':expedition?'원정 종료':'원더랜드 함락'}</h2><p>${state.wave} 웨이브까지 방어했습니다.</p><p>처치한 적: ${state.kills} · 강화 레벨: ${state.upgrade}</p><button id="retry" class="danger">다시 도전</button>`);$('retry').onclick=restart}
-function restart(){if(saveConflict){location.reload();return;}if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;bossWarningWave=0;uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
+function restart() {
+  if(saveConflict) {location.reload();return;}
+  if(confirm('진행 상황을 초기화하고 새로 시작할까요?')) resetRun();
+}
+function resetRun() {
+  state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;
+  if(expedition) {syncFocus();resize();}
+  mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;bossWarningWave=0;
+  uid=1;rosterKey=undefined;spellFlash=0;autosummonTimer=0;saveTimer=0;
+  $('game').classList.remove('over');
+  $('modal').close();
+  refresh();
+  persist();
+  if(!saveConflict) {
+    if(expedition) showChoices();
+    else announce('새로운 모험 시작!');
+  }
+}
+let titleReturn=null;
 function showModal(html) {
+  titleReturn=null;
   $('close').hidden = false;
   $('modalBody').innerHTML = html;
   $('modalBody').querySelector('h2').id = 'modalTitle';
   if (!$('modal').open) $('modal').showModal();
 }
 function closeModal() { if(!choosing()) $('modal').close(); }
-if(expedition) $('modal').addEventListener('cancel',event=>{if(choosing() || $('modal').classList.contains('title-screen')) event.preventDefault();});
-$('close').onclick = closeModal;
+if(expedition) $('modal').addEventListener('cancel',event=>{
+  if(titleReturn || choosing() || $('modal').classList.contains('title-screen')) event.preventDefault();
+  if(titleReturn) titleReturn();
+});
+$('close').onclick=()=>titleReturn ? titleReturn() : closeModal();
 $('summon').onclick=()=>summon();$('merge').onclick=merge;$('upgrade').onclick=upgrade;$('spell').onclick=spell;
 $('speed').onclick=()=>{state.speed=state.speed===1?2:state.speed===2?3:1;refresh()};$('pause').onclick=()=>{if(saveConflict){location.reload();return;}state.paused=!state.paused;refresh()};$('auto').onclick=()=>{state.auto=!state.auto;refresh();persist()};$('reset').onclick=restart;
 function syncSoundButton() {
@@ -466,23 +488,25 @@ function damageMob(m, damage, color, life = .27, radius = 17) {
 
 function hit(m, damage, source) {
   if (m.hp <= 0) return;
-  const effect=roster[source.type].effect;
+  const unit=roster[source.type], effect=unit.effect;
+  if(unit.armorBonus && m.armor>0) damage*=unit.armorBonus;
   const afterArmor=(mob,amount)=>effect==='pierce' ? amount : amount*(1-mob.armor);
   if(effect==='execute' && m.hp <= m.max*.4) damage*=1.75;
   damageMob(m,afterArmor(m,damage),source.color);
-  if(effect==='frost' && m.hp>0) {
-    m.slow=2.9;
-    m.slowFactor=.51;
+  if((effect==='frost' || source.type===3) && m.hp>0) {
+    const factor=unit.slowFactor ?? (source.type===3 ? .55 : .51);
+    if(m.slow<=0 || factor<=m.slowFactor) {
+      m.slow=unit.slowDuration ?? (source.type===3 ? 2.5 : 2.9);
+      m.slowFactor=factor;
+    }
   }
   if(effect==='chain' || effect==='burst') {
-    const radius=effect==='chain'?95:74;
-    const neighbors=mobs.filter(other=>other!==m && other.hp>0 && Math.hypot(other.x-m.x,other.y-m.y)<radius);
-    const targets=effect==='chain' ? neighbors.slice(0,2) : neighbors;
-    for(const other of targets) damageMob(other,afterArmor(other,damage*.43),source.color);
-  }
-  if (source.type === 3) {
-    m.slow = 2.5;
-    m.slowFactor = .55;
+    const radius=unit.splashRadius ?? (effect==='chain' ? 95 : 74);
+    const distance=other=>Math.hypot(other.x-m.x,other.y-m.y);
+    const neighbors=mobs.filter(other=>other!==m && other.hp>0 && distance(other)<radius);
+    if(unit.chainCount) neighbors.sort((a,b)=>distance(a)-distance(b));
+    const targets=effect==='chain' ? neighbors.slice(0,unit.chainCount ?? 2) : neighbors;
+    for(const other of targets) damageMob(other,afterArmor(other,damage*(unit.splashDamage ?? .43)),source.color);
   }
   if (source.type === 4) {
     for (const other of mobs) {
@@ -946,30 +970,51 @@ function fuse(index) {
   state.units[slot]={id:uid++,type:recipe.type,slot:anchor.slot,reserve:anchor.reserve,tier:Math.min(first.tier,second.tier),cool:0,born:visualTime};
   state.units.splice(state.units.indexOf(consumed),1);
   selectedUnit=null;
-  closeModal();
-  announce(recipe.name+' 탄생!');
+  const filter=$('recipeFilter').value, search=$('recipeSearch').value;
+  const result=recipe.name+' 탄생!';
+  announce(result);
   refresh();
   persist();
+  if(!saveConflict) {
+    showRecipes({filter,search,result});
+    $('recipeStatus').focus();
+  }
 }
-function showRecipes() {
+function showRecipes({filter='all',search='',result=''}={}) {
   const rows=ZundaExpedition.fusionRecipes.map((recipe,index)=>{
-    const ready=ingredients(recipe).every(Boolean);
-    return {recipe,index,ready};
-  }).sort((a,b)=>Number(b.ready)-Number(a.ready));
-  const buttons=rows.map(({recipe,index,ready})=>`<button class="recipe" data-recipe="${index}" data-ready="${ready}" ${ready?'':'disabled'}><img src="${portraits[recipe.type]}" alt="" style="--portrait-hue:${recipe.hue}deg"><span><b>${recipe.name}</b><small>${roster[recipe.first].name} + ${roster[recipe.second].name}</small><small>${recipe.skill}</small></span><em>${ready?'조합':'재료 부족'}</em></button>`).join('');
-  showModal('<h2>동료 조합표</h2><p>서로 다른 동료를 조합하면 두 재료 중 낮은 별 등급으로 태어납니다.</p><label class="recipe-filter"><input id="readyOnly" type="checkbox"> 지금 조합 가능</label><label class="recipe-filter"><input id="recipeSearch" type="search" placeholder="동료 또는 재료 이름" aria-label="동료 또는 재료를 검색"></label><p id="recipeEmpty" hidden>조건에 맞는 조합이 없습니다.</p><div class="recipes">'+buttons+'</div>');
+    const owned=ingredients(recipe);
+    return {recipe,index,owned,count:owned.filter(Boolean).length};
+  }).sort((a,b)=>b.count-a.count);
+  const readyCount=rows.filter(row=>row.count===2).length;
+  const nearCount=rows.filter(row=>row.count===1).length;
+  const buttons=rows.map(({recipe,index,owned,count})=>{
+    const materials=[recipe.first,recipe.second].map((type,i)=>{
+      const unit=owned[i];
+      return '<small class="recipe-material '+(unit?'owned':'missing')+'">'+roster[type].name+
+        (unit?' · 보유 ★'+unit.tier:' · 필요')+'</small>';
+    }).join('');
+    return `<button class="recipe" data-recipe="${index}" data-ready="${count===2}" data-owned="${count}" ${count===2?'':'disabled'}><img src="${portraits[recipe.type]}" alt="" style="--portrait-hue:${recipe.hue}deg"><span><b>${recipe.name}</b>${materials}<small>${recipe.skill}</small></span><em>${count===2?'조합 가능':count===1?'1명 부족':'2명 부족'}</em></button>`;
+  }).join('');
+  showModal(`<h2>동료 조합표</h2><p id="recipeStatus" role="status" tabindex="-1"></p><label class="recipe-filter">보기<select id="recipeFilter"><option value="all">전체 ${rows.length}</option><option value="ready">지금 조합 가능 ${readyCount}</option><option value="near">한 명만 더 필요 ${nearCount}</option></select></label><label class="recipe-filter"><input id="recipeSearch" type="search" placeholder="동료 또는 재료 이름" aria-label="동료 또는 재료를 검색"></label><p id="recipeEmpty" hidden></p><div class="recipes">${buttons}</div>`);
+  $('recipeStatus').textContent=(result ? result+' ' : '')+'지금 조합 가능 '+readyCount+'개 · 한 명만 더 필요 '+nearCount+'개';
+  $('recipeFilter').value=filter;
+  $('recipeSearch').value=search;
   const updateFilter=()=>{
     const query=$('recipeSearch').value.trim().toLocaleLowerCase();
-    const readyOnly=$('readyOnly').checked;
+    const mode=$('recipeFilter').value;
+    const required={ready:'2',near:'1'}[mode];
     let shown=0;
     for(const button of $('modalBody').querySelectorAll('[data-recipe]')) {
-      button.hidden=(readyOnly && button.dataset.ready!=='true') || !button.textContent.toLocaleLowerCase().includes(query);
+      button.hidden=(required!==undefined && button.dataset.owned!==required) || !button.textContent.toLocaleLowerCase().includes(query);
       if(!button.hidden) shown++;
     }
-    $('recipeEmpty').hidden=shown>0;
+    const empty=$('recipeEmpty');
+    empty.hidden=shown>0;
+    empty.textContent=query ? '검색 결과가 없습니다.' : '이 조건에 맞는 조합이 없습니다. 전체 조합을 확인해 보세요.';
   };
-  $('readyOnly').onchange=updateFilter;
+  $('recipeFilter').onchange=updateFilter;
   $('recipeSearch').oninput=updateFilter;
+  updateFilter();
 }
 function marketOffers() {
   const pool=cast.map(character=>character.type);
@@ -1090,7 +1135,11 @@ if(expedition) {
     const button=event.target.closest('[data-pad]');
     if(button) moveFormation(Number(button.dataset.pad));
   });
-  $('recipes').onclick=showRecipes;
+  $('recipes').onclick=()=>showRecipes();
+  $('backToTitle').onclick=()=>{
+    persist();
+    if(!saveConflict) showTitleScreen();
+  };
   $('market').onclick=showMarket;
   $('modalBody').addEventListener('click',event=>{
     const button=event.target.closest('[data-recipe]');
@@ -1121,28 +1170,72 @@ function showTitleScreen() {
   refresh();
   const dialog=$('modal');
   dialog.classList.add('title-screen');
-  showModal('<h2>로사 원정대</h2><button id="startExpedition">게임 시작하기</button>');
+  showModal('<img class="title-art" src="assets/title/four-companions.webp" alt=""><h2>로사 원정대</h2><div class="title-actions"><button id="startExpedition">게임 시작하기</button><button id="releaseHistory">업데이트 내역</button></div>');
   $('close').hidden=true;
   $('startExpedition').onclick=()=>{
     dialog.classList.remove('title-screen');
-    dialog.close();
-    enterGame();
+    if(lastStored!==null && (state.units.length || state.wave>1 || state.gameover)) showPlayOptions();
+    else {dialog.close();enterGame();}
   };
+  $('releaseHistory').onclick=showReleaseHistory;
   $('startExpedition').focus();
 }
 
 // Change the release ID and notes together when publishing a player-facing update.
 const release = {
-  id:'2026-11-21-title-screen',
-  title:'새 타이틀 화면과 원정대 동료',
+  id:'2026-11-21-four-starters',
+  title:'네 명의 시작 동료와 새 조합표',
   notes:[
-    '타이틀 화면에서 게임 시작하기를 눌러 원정을 시작할 수 있습니다.',
-    '첫 동료 선택창에서 로사, 프패, 소설가, 빰의 기본형을 고를 수 있습니다.',
-    '상위 조합 동료 새벽검 로사, 서리술사 프패, 뇌전궁 소설가, 월식검 빰을 만나보세요.',
-    '아군 용 네 마리가 새 일러스트를 얻었고, 적군에는 인간형 추적병·돌격병·방패병이 합류했습니다.',
-    '아군과 겹치는 적은 잠시 반투명해집니다. 전투 음악 3곡과 보스 경고음도 추가됐습니다.'
+    '새 원정의 첫 동료를 로사, 프패, 소설가, 빰 중 한 명으로 고릅니다.',
+    '새벽 폭발, 빙결 주문, 연쇄 사격, 갑옷 가르기 중 원하는 전투 방식으로 시작하세요.',
+    '고유 능력은 상위 조합형으로 진화한 뒤에도 이어집니다.',
+    '새 조합표는 만들 수 있는 동료를 먼저 보여주고, 부족한 재료와 보유한 별 등급을 표시합니다.',
+    '네 주인공이 함께 그려진 타이틀에서 업데이트 내역을 확인할 수 있습니다. 전투 중에도 타이틀로 돌아가거나, 저장된 원정을 이어서 플레이할 수 있습니다.'
   ]
 };
+const releaseHistory = [
+  release,
+  {title:'타이틀 화면과 기본형 동료',notes:['타이틀에서 게임 시작하기를 눌러 원정을 시작합니다. 로사, 프패, 소설가, 빰의 기본형과 상위 조합 경로가 추가됐습니다.']},
+  {title:'상위 조합 동료와 검붉은 군단',notes:['상위 조합 동료 네 명의 공격 모션과 아군 용 네 마리의 일러스트를 추가했습니다. 인간형 적은 아군과 겹칠 때 반투명해집니다.']},
+  {title:'전투 음악과 보스 경고',notes:['전투 음악 3곡과 보스 등장 경고음을 추가하고 2~19웨이브 적 체력을 조정했습니다.']}
+];
+function showTitlePage(html,back,inDialogButton='') {
+  const dialog=$('modal');
+  dialog.classList.remove('title-screen');
+  showModal(html);
+  titleReturn=back;
+  if(inDialogButton) $(inDialogButton).onclick=back;
+  if(inDialogButton) $(inDialogButton).focus({preventScroll:true});
+  dialog.scrollTop=0;
+}
+function showReleaseHistory() {
+  showTitlePage('<h2>업데이트 내역</h2>'+
+    releaseHistory.map(entry=>'<section><h3>'+entry.title+'</h3><ul>'+
+      entry.notes.map(note=>'<li>'+note+'</li>').join('')+'</ul></section>').join('')+
+    '<button id="closeReleaseHistory">타이틀로 돌아가기</button>',showTitleScreen,'closeReleaseHistory');
+}
+function showPlayOptions() {
+  showTitlePage('<h2>원정 시작</h2><p>저장된 원정 · '+state.wave+'웨이브</p>'+
+    '<div class="title-menu"><button id="continueExpedition">이전 게임 이어하기</button>'+
+    '<button id="newExpedition">새 게임 시작</button></div>',showTitleScreen);
+  $('continueExpedition').onclick=()=>{
+    titleReturn=null;
+    $('modal').close();
+    enterGame();
+  };
+  $('newExpedition').onclick=confirmNewExpedition;
+  $('continueExpedition').focus();
+}
+function confirmNewExpedition() {
+  showTitlePage('<h2>새 게임 시작</h2><p>기존 원정 진행을 지우고 첫 동료 선택부터 다시 시작합니다.</p>'+
+    '<div class="title-menu"><button id="cancelNewExpedition">취소</button>'+
+    '<button id="confirmNewExpedition" class="danger">기존 진행을 지우고 시작</button></div>',
+    showPlayOptions,'cancelNewExpedition');
+  $('confirmNewExpedition').onclick=()=>{
+    titleReturn=null;
+    resetRun();
+  };
+}
 const releaseKey='rosa-expedition-seen-release';
 let seenRelease;
 try { seenRelease=localStorage.getItem(releaseKey); } catch {}
