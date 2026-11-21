@@ -938,6 +938,8 @@ function draw() {
   }
 }
 
+const battlePlaylist=['opening','harbor','rift','chase','deep','lantern'];
+
 function frame(now) {
   const dt = Math.min(.055,(now-last)/1000);
   last = now;
@@ -945,7 +947,7 @@ function frame(now) {
   draw();
   const track=expedition && (mobs.some(enemy=>enemy.boss && enemy.hp>0)
     || (bossWarningWave===state.wave && state.spawned===waveTotal()-1)) ? 'boss'
-    : expedition && state.wave>16 ? 'deep' : expedition && state.wave>4 ? 'rift' : 'opening';
+    : expedition ? battlePlaylist[Math.floor((state.wave-1)/2)%battlePlaylist.length] : 'opening';
   CourtAudio.sync(!state.paused && !state.gameover && !blockingPanel() && !document.hidden,track);
   if (now >= nextRefresh) {
     refresh();
@@ -1486,10 +1488,7 @@ if(expedition) {
   const fitEnabled=()=>display.classList.contains('fit-screen');
   const viewport=window.visualViewport;
   function syncViewportLayout() {
-    if(!fitEnabled()) {
-      display.classList.toggle('landscape-layout',innerWidth>=568 && innerWidth>innerHeight);
-      return;
-    }
+    if(!fitEnabled()) return;
     display.style.setProperty('--fit-width',(viewport?.width ?? innerWidth)+'px');
     display.style.setProperty('--fit-height',(viewport?.height ?? innerHeight)+'px');
     display.style.setProperty('--fit-left',(viewport?.offsetLeft ?? 0)+'px');
@@ -1513,7 +1512,6 @@ if(expedition) {
       try { if(document.fullscreenElement) await document.exitFullscreen(); } catch {}
       return;
     }
-    const direction=display.classList.contains('landscape-layout')?'landscape':'portrait';
     if(!document.documentElement.requestFullscreen) {
       toast('이 브라우저에서는 전체 화면을 지원하지 않습니다');
       return;
@@ -1530,7 +1528,7 @@ if(expedition) {
       try { if(document.fullscreenElement) await document.exitFullscreen(); } catch {}
       return;
     }
-    try { await screen.orientation?.lock?.(direction); } catch {}
+    try { await screen.orientation?.lock?.('portrait'); } catch {}
     syncViewportLayout();
   };
   installFormationDrag();
@@ -1608,12 +1606,15 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.16',
-  title:'세로 전체 화면 잘림 수정',
-  notes:['실제 전체 화면에서 조작 후에도 세로 배치를 유지하고, 보이는 화면 너비와 높이를 모두 사용합니다.']
+  version:'1.17',
+  title:'세로 전장과 새 전투 음악',
+  notes:['가로 UI를 제거했습니다. 일반 전투 음악 여섯 곡이 두 웨이브마다 교대합니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.16',title:'세로 전체 화면 잘림 수정',
+  notes:['실제 전체 화면에서 조작 후에도 세로 배치를 유지하고, 보이는 화면 너비와 높이를 모두 사용합니다.']
+  },
   {version:'1.15',title:'모바일 화면 맞춤',notes:['모바일 화면 배치 문제를 점검했습니다.']},
   {version:'1.14',title:'전체 화면 방향 고정',notes:['전체 화면에 들어갈 때의 배치를 종료할 때까지 유지합니다.']},
   {version:'1.13',title:'전투 난이도 상향',notes:['중후반 적의 체력과 이동 속도, 보스 체력을 높였습니다.']},
