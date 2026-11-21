@@ -449,7 +449,6 @@ body[data-expedition].landscape-layout .battle-sidebar .section-title { padding-
 body[data-expedition].fit-screen:not(.landscape-layout) #game {
     display:grid;
     grid-template-rows:auto auto minmax(0,1fr) auto;
-    height:100dvh;
   }
 body[data-expedition].fit-screen:not(.landscape-layout) #saveNotice { grid-row:2; }
 body[data-expedition].fit-screen:not(.landscape-layout) .battlefield-layout {
@@ -486,9 +485,10 @@ body[data-expedition].fit-screen.landscape-layout .battle-sidebar .zunda-credit 
 body[data-expedition].fit-screen { overflow:hidden; }
 body[data-expedition].fit-screen #game {
   position:fixed;
-  inset:0;
-  margin-inline:auto;
-  height:100dvh;
+  inset:var(--fit-top,0px) auto auto var(--fit-left,0px);
+  margin:0;
+  width:var(--fit-width,100%);
+  height:var(--fit-height,100dvh);
   min-height:0;
   overflow:hidden;
 }

@@ -1482,34 +1482,57 @@ if(expedition) {
   $('reloadSave').onclick=()=>location.reload();
   $('tactics').onclick=openCommands;
   const screenButton=$('fullscreen');
-  const setLandscape=landscape=>document.body.classList.toggle('landscape-layout',landscape);
-  const fitEnabled=()=>document.body.classList.contains('fit-screen');
+  const display=document.body;
+  const fitEnabled=()=>display.classList.contains('fit-screen');
+  const viewport=window.visualViewport;
   function syncViewportLayout() {
-    if(!fitEnabled()) setLandscape(innerWidth>=568 && innerWidth>innerHeight);
+    if(!fitEnabled()) {
+      display.classList.toggle('landscape-layout',innerWidth>=568 && innerWidth>innerHeight);
+      return;
+    }
+    display.style.setProperty('--fit-width',(viewport?.width ?? innerWidth)+'px');
+    display.style.setProperty('--fit-height',(viewport?.height ?? innerHeight)+'px');
+    display.style.setProperty('--fit-left',(viewport?.offsetLeft ?? 0)+'px');
+    display.style.setProperty('--fit-top',(viewport?.offsetTop ?? 0)+'px');
   }
   function fitScreen(enabled) {
-    document.body.classList.toggle('fit-screen',enabled);
+    display.classList.toggle('fit-screen',enabled);
     screenButton.setAttribute('aria-pressed',enabled);
     screenButton.setAttribute('aria-label',enabled?'전체 화면 종료':'전체 화면');
-    if(!enabled) syncViewportLayout();
+    syncViewportLayout();
   }
   syncViewportLayout();
   window.addEventListener('resize',syncViewportLayout);
-  const touchLayout=()=>navigator.maxTouchPoints>0 || matchMedia('(pointer: coarse)').matches;
+  viewport?.addEventListener('resize',syncViewportLayout);
+  viewport?.addEventListener('scroll',syncViewportLayout);
+  document.addEventListener('fullscreenchange',syncViewportLayout);
   screenButton.onclick=async()=>{
-    if(document.body.classList.contains('fit-screen')) {
+    if(fitEnabled()) {
       fitScreen(false);
+      try { screen.orientation?.unlock?.(); } catch {}
       try { if(document.fullscreenElement) await document.exitFullscreen(); } catch {}
-    } else {
-      fitScreen(true);
-      if(touchLayout()) return;
-      try {
-        await document.documentElement.requestFullscreen?.();
-        if(!fitEnabled() && document.fullscreenElement) await document.exitFullscreen();
-      } catch {}
+      return;
     }
+    const direction=display.classList.contains('landscape-layout')?'landscape':'portrait';
+    if(!document.documentElement.requestFullscreen) {
+      toast('이 브라우저에서는 전체 화면을 지원하지 않습니다');
+      return;
+    }
+    fitScreen(true);
+    try {
+      await document.documentElement.requestFullscreen({navigationUI:'hide'});
+    } catch {
+      fitScreen(false);
+      toast('브라우저에서 전체 화면을 허용하지 않았습니다');
+      return;
+    }
+    if(!fitEnabled()) {
+      try { if(document.fullscreenElement) await document.exitFullscreen(); } catch {}
+      return;
+    }
+    try { await screen.orientation?.lock?.(direction); } catch {}
+    syncViewportLayout();
   };
-  // Keep the fitted layout even if the browser temporarily exits native fullscreen.
   installFormationDrag();
   canvas.addEventListener('click',event=>{
     if(command) fireCommand(event);
@@ -1585,12 +1608,13 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.15',
-  title:'모바일 화면 맞춤',
-  notes:['휴대폰과 태블릿은 게임 안에서 화면을 채우고, 시작할 때의 방향을 유지합니다.']
+  version:'1.16',
+  title:'세로 전체 화면 잘림 수정',
+  notes:['실제 전체 화면에서 조작 후에도 세로 배치를 유지하고, 보이는 화면 너비와 높이를 모두 사용합니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.15',title:'모바일 화면 맞춤',notes:['모바일 화면 배치 문제를 점검했습니다.']},
   {version:'1.14',title:'전체 화면 방향 고정',notes:['전체 화면에 들어갈 때의 배치를 종료할 때까지 유지합니다.']},
   {version:'1.13',title:'전투 난이도 상향',notes:['중후반 적의 체력과 이동 속도, 보스 체력을 높였습니다.']},
   {version:'1.12',title:'끊김 없는 전투와 전체 화면',notes:['전투 메뉴를 열어도 전투가 계속되고, 돌진 저지와 무적 방패를 제거했습니다.']},
