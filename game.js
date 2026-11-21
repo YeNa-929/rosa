@@ -1495,12 +1495,14 @@ if(expedition) {
   }
   syncViewportLayout();
   window.addEventListener('resize',syncViewportLayout);
+  const touchLayout=()=>navigator.maxTouchPoints>0 || matchMedia('(pointer: coarse)').matches;
   screenButton.onclick=async()=>{
     if(document.body.classList.contains('fit-screen')) {
       fitScreen(false);
       try { if(document.fullscreenElement) await document.exitFullscreen(); } catch {}
     } else {
       fitScreen(true);
+      if(touchLayout()) return;
       try {
         await document.documentElement.requestFullscreen?.();
         if(!fitEnabled() && document.fullscreenElement) await document.exitFullscreen();
@@ -1583,12 +1585,13 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.14',
-  title:'전체 화면 방향 고정',
-  notes:['전체 화면을 켤 때의 세로·가로 배치를 종료 버튼을 누를 때까지 유지합니다.']
+  version:'1.15',
+  title:'모바일 화면 맞춤',
+  notes:['휴대폰과 태블릿은 게임 안에서 화면을 채우고, 시작할 때의 방향을 유지합니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.14',title:'전체 화면 방향 고정',notes:['전체 화면에 들어갈 때의 배치를 종료할 때까지 유지합니다.']},
   {version:'1.13',title:'전투 난이도 상향',notes:['중후반 적의 체력과 이동 속도, 보스 체력을 높였습니다.']},
   {version:'1.12',title:'끊김 없는 전투와 전체 화면',notes:['전투 메뉴를 열어도 전투가 계속되고, 돌진 저지와 무적 방패를 제거했습니다.']},
   {version:'1.11',title:'넓어진 전장과 한 줄 동료 메뉴',notes:['동료 버튼을 한 줄에 맞추고 전장과 렌더링 해상도를 개선했습니다.']},
