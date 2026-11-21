@@ -365,3 +365,82 @@ body[data-expedition] {
 .release-entry h3 { display:flex; align-items:baseline; gap:8px; font-size:15px; }
 
 .unit-training-actions { display:grid; gap:4px; }
+
+.battlefield-layout, .battle-sidebar { display:contents; }
+
+@media (orientation:landscape) and (min-width:568px) {
+  [data-expedition] #game {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) clamp(224px,32vw,380px);
+    grid-template-rows:auto auto minmax(0,1fr);
+    width:min(100%,1600px);
+    height:100dvh;
+  }
+  [data-expedition] #game > header,
+  [data-expedition] #saveNotice { grid-column:1 / -1; }
+  [data-expedition] #game > header {
+    grid-row:1;
+    padding-block:3px;
+  }
+  [data-expedition] #game > header h1 {
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  [data-expedition] #saveNotice { grid-row:2; }
+  .battlefield-layout {
+    display:grid;
+    grid-row:3;
+    grid-column:1;
+    grid-template-rows:auto auto minmax(0,1fr) auto;
+    min-height:0;
+    min-width:0;
+    background:#17243c;
+  }
+  [data-expedition] #stage { min-height:0; }
+  .battle-sidebar {
+    display:flex;
+    flex-direction:column;
+    grid-row:3;
+    grid-column:2;
+    min-height:0;
+    min-width:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    border-inline-start:1px solid #526989;
+    background:#1b2236;
+  }
+  .battle-sidebar footer { flex:1; }
+  .battle-sidebar .actions button { min-height:44px; }
+  .battle-sidebar .section-title { padding-block:2px; }
+}
+
+@media (orientation:landscape) and (max-height:430px) {
+  [data-expedition] #game > header h1 small { display:none; }
+  .battle-sidebar #roster .section-title {
+    min-height:0;
+    gap:4px;
+    font-size:11px;
+    white-space:nowrap;
+  }
+  .battle-sidebar #auto,
+  .battle-sidebar #reserveTab,
+  .battle-sidebar #autoDeploy {
+    margin-left:0;
+    padding-inline:4px;
+    font-size:10px;
+  }
+  .battle-sidebar #auto span { margin-left:2px; }
+  .battle-sidebar #interrupt {
+    display:grid;
+    align-content:center;
+    justify-items:start;
+    line-height:1.15;
+    gap:2px;
+  }
+  .battle-sidebar #cards { min-height:54px; }
+  .battle-sidebar .formation-card { min-height:44px; }
+  .battle-sidebar .formation-card img { height:36px; }
+  .starter-screen #modalTitle { font-size:27px; }
+  .starter-screen #modalTitle + p { margin-bottom:5px; }
+}
