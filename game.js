@@ -44,6 +44,8 @@ const finalWave = 16;
 const rosterLimit = expedition ? 12 : 18;
 const mergeCount = expedition ? 2 : 3;
 let selectedUnit = null;
+let breaking=null, fieldImpact=0;
+const breakWindow=3.6;
 const keepPhase = phase => expedition && ['draft','reward'].includes(phase) ? phase : 'wave';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let terrain, path, lengths, pathLength, rosterKey, rosterOver, nextRefresh = 0, spellFlash = 0;
@@ -189,7 +191,9 @@ function spawn() {
   const kind=expedition ? ZundaExpedition.kind(state.wave,state.spawned,boss) : null;
   const model=kind ? ZundaExpedition.opponents[kind] : null;
   const hp=(boss?550:65)*Math.pow(1.24,state.wave-1)*(state.elite?1.4:1)*(model?.hp ?? 1);
+  const warded=expedition && state.spawned===waveTotal()-1 && (boss || state.wave%3===2);
   const m={id:uid++,t:0,hp,max:hp,boss,kind,model,armor:model?.armor ?? 0,slow:0,slowFactor:1,
+    warded,wardFloor:.48,breakTime:0,rearm:.29,step:0,lastStep:0,facing:1,
     speed:(boss?.032:.061)*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1),x:0,y:0};
   [m.x,m.y]=at(0);
   mobs.push(m);
@@ -208,6 +212,7 @@ function upgrade(){const cost=30+state.upgrade*25;if(state.gold<cost){toast('�
 function spell(){if(state.spellCD>0){toast('마법 재사용 대기 중');return}state.spellCD=24;spellFlash=.75;mobs.forEach(m=>{if(m.hp<=0)return;damageMob(m,90+state.wave*11,'#9bd7ff',.65,25);m.slow=4;m.slowFactor=.35});announce('🌀 원더랜드 시간 정지!');beep(400,.3);refresh()}
 function refresh() {
   const s = state;
+  updateBreakControls();
   $('wave').textContent = s.wave;
   $('gems').textContent = s.gems;
   $('gold').textContent = s.gold;
@@ -252,7 +257,7 @@ function refresh() {
 }
 
 function end(){state.gameover=true;state.paused=true;refresh();persist();$('game').classList.toggle('over',!state.cleared);showModal(`<h2>${state.cleared?'원정 성공!':expedition?'원정 종료':'원더랜드 함락'}</h2><p>${state.wave} 웨이브까지 방어했습니다.</p><p>처치한 적: ${state.kills} · 강화 레벨: ${state.upgrade}</p><button id="retry" class="danger">다시 도전</button>`);$('retry').onclick=restart}
-function restart(){if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();selectedUnit=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
+function restart(){if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();selectedUnit=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
 function showModal(html) {
   $('close').hidden = false;
   $('modalBody').innerHTML = html;
@@ -281,7 +286,15 @@ $('help').onclick=()=>showModal('<h2>♠ 게임 방법</h2><p>수호자를 무�
 $('codex').onclick=()=>showModal((expedition?'<h2>원정대 도감</h2>':'<h2>📖 원더랜드 도감</h2>')+roster.map((t,i)=>`<div class="entry"><img referrerpolicy="no-referrer" src="${portraits[i]}" alt=""><div><b>${t.name}</b><small>공격 ${t.dmg} · 사거리 ${t.range} · ${t.skill}</small></div></div>`).join('')+(expedition?'':'<p>루이스 캐럴의 1865년 소설에서 모티프를 얻은 독립 제작 게임입니다.</p>'));
 function damageMob(m, damage, color, life = .27, radius = 17) {
   if (m.hp <= 0) return;
-  m.hp -= damage;
+  m.hp=m.warded ? Math.min(m.hp,Math.max(m.max*m.wardFloor,m.hp-damage)) : m.hp-damage;
+  if(m.model && m.boss && !m.warded && !m.secondWard && m.hp<=m.max*.44) {
+    m.secondWard=true;
+    m.warded=true;
+    m.wardFloor=.16;
+    m.hp=Math.max(m.hp,m.max*.16);
+    m.rearm=Math.min(.91,m.t+.045);
+    announce(m.model.name+' · 방패 재생');
+  }
   m.flash = visualTime + .13;
   particles.push({x:m.x,y:m.y,life,duration:life,radius,color});
   if (m.hp > 0) {
@@ -329,14 +342,86 @@ function hit(m, damage, source) {
   }
 }
 
+function updateBreakControls() {
+  if(!expedition) return;
+  const ready=!!breaking && !state.paused && !state.gameover && !$('modal').open;
+  $('interrupt').disabled=!ready;
+  $('interrupt').classList.toggle('ready',ready);
+  $('interruptStatus').textContent=ready ? breaking.breakTime.toFixed(1)+'초 · '+(breaking.breakTime<=1.15?'완벽 저지!':'방패 파괴') : '돌진 예고에 사용';
+  $('interrupt').classList.toggle('perfect',ready && breaking.breakTime<=1.15);
+  $('chargeMeter').hidden=!breaking || state.gameover;
+  if(!$('chargeMeter').hidden) {
+    $('chargeLabel').textContent=breaking.boss ? '보스 돌진 · 저지하세요!' : '파수대 돌진 · 저지하세요!';
+    $('chargeFill').style.width=Math.min(100,100*breaking.breakTime/breakWindow)+'%';
+  }
+}
+
+function interrupt() {
+  if(!breaking || state.paused || state.gameover || $('modal').open) return;
+  const enemy=breaking;
+  const perfect=enemy.breakTime<=1.15;
+  breaking=null;
+  enemy.warded=false;
+  enemy.breakTime=0;
+  enemy.slow=2.4;
+  enemy.slowFactor=.38;
+  damageMob(enemy,enemy.max*(perfect?.32:.23),'#7fffe5',.54,38);
+  if(perfect) {
+    state.gems++;
+    for(const other of mobs) {
+      if(other!==enemy && Math.hypot(other.x-enemy.x,other.y-enemy.y)<94) {
+        damageMob(other,enemy.max*.09,'#ffc47f',.42,26);
+      }
+    }
+  }
+  fieldImpact=perfect?.32:.24;
+  announce(perfect?'완벽 저지! 충격파 · 보석 +1':'돌진 저지! 방패 파괴');
+  beep(perfect?560:220,.18);
+  persist();
+  updateBreakControls();
+}
+
+function moveEnemy(m,dt) {
+  const oldX=m.x,oldY=m.y;
+  if(m.warded && m.breakTime>0) {
+    m.breakTime-=dt/state.speed;
+    if(m.breakTime<=0) {
+      breaking=null;
+      m.t+=m.boss ? .25 : .31;
+      m.rearm=m.t+.08;
+      fieldImpact=.28;
+      announce('저지 실패 · 적이 돌진합니다!');
+      beep(110,.24);
+    }
+  } else {
+    m.t+=m.speed*m.slowFactor*dt;
+    if(m.warded && m.t>=m.rearm && m.t<.92) {
+      m.breakTime=breakWindow;
+      breaking=m;
+      announce('돌진 예고 · 저지 버튼을 누르세요!');
+      beep(330,.15);
+    }
+  }
+  [m.x,m.y]=at(m.t);
+  if(!m.model) return;
+  if(Math.abs(m.x-oldX)>.1) m.facing=Math.sign(m.x-oldX);
+  m.step+=Math.min(20,Math.hypot(m.x-oldX,m.y-oldY))/(m.boss?17:11);
+  const footfall=Math.floor(m.step);
+  if(footfall!==m.lastStep && !reducedMotion.matches) {
+    m.lastStep=footfall;
+    particles.push({x:m.x-m.facing*8,y:m.y+7,life:.25,duration:.25,radius:m.boss?15:9,color:m.model.color,dust:true});
+  }
+}
+
 function update(dt){toastTimer-=dt;annTimer-=dt;if(toastTimer<=0)$('toast').style.opacity=0;if(annTimer<=0)$('announcement').style.opacity=0;
 if(!path||state.paused||state.gameover||choosing()||$('modal').open)return;
 visualTime += dt;
 spellFlash = Math.max(0, spellFlash-dt);
+fieldImpact=Math.max(0,fieldImpact-dt/state.speed);
 state.spellCD=Math.max(0,state.spellCD-dt);autosummonTimer-=dt;if(state.auto&&autosummonTimer<=0){summon(true);autosummonTimer=.6}
 if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&state.spawnTimer<=0){spawn();state.spawnTimer=Math.max(.26,.78-state.wave*.013)}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
 else{state.breakTimer-=dt;if(state.breakTimer<=0){state.wave++;state.spawned=0;state.spawnTimer=.5;state.phase='wave';announce('🌙 WAVE '+state.wave);persist()}}
-for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}m.t+=m.speed*m.slowFactor*dt;[m.x,m.y]=at(m.t);if(m.t>=1){m.hp=-1;state.life-=m.boss?(expedition ? state.life : 5):1;if(state.life<=0){state.life=0;end();return}}}
+for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}moveEnemy(m,dt);if(m.t>=1){m.hp=-1;state.life-=m.boss?(expedition ? state.life : 5):m.warded?8:1;if(state.life<=0){state.life=0;end();return}}}
 for(let i=0;i<state.units.length;i++){const u=state.units[i],t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(Math.hypot(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=t.dmg*Math.pow(2.15,u.tier-1)*(1+state.upgrade*.25+state.power)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/(t.rate*(1+(u.tier-1)*.1+state.tempo))}}
 for(const b of bullets){if(b.target.hp<=0){b.dead=true;continue}const dx=b.target.x-b.x,dy=b.target.y-b.y,d=Math.hypot(dx,dy);if(d<=Math.max(13,b.speed*dt)){hit(b.target,b.damage,b);b.dead=true}else{const step=Math.min(d,b.speed*dt);b.x+=dx/d*step;b.y+=dy/d*step}}
 bullets=bullets.filter(b=>!b.dead);mobs=mobs.filter(m=>m.hp>0);particles.forEach(p=>p.life-=dt);particles=particles.filter(p=>p.life>0);
@@ -402,10 +487,11 @@ function drawEnemies(motion) {
   for (const m of mobs) {
     if (m.hp <= 0) continue;
     const size = m.boss ? (m.model ? (m.enraged ? 100 : 84) : 65) : (m.model ? 49 : 44);
-    const stride = motion ? Math.sin(visualTime*13+m.id)*2 : 0;
+    const walking=motion && m.model && m.breakTime<=0;
+    const stride=walking ? Math.abs(Math.sin(m.step*Math.PI))*size*.064 : motion && !m.model ? Math.sin(visualTime*13+m.id)*2 : 0;
     g.fillStyle = '#151524ab';
     g.beginPath();
-    g.ellipse(m.x,m.y+8,size*.29,5,0,0,Math.PI*2);
+    g.ellipse(m.x,m.y+8,size*.33-stride*.7,5,0,0,Math.PI*2);
     g.fill();
     if (m.slow>0) {
       g.strokeStyle = '#99e5ffc4';
@@ -417,13 +503,31 @@ function drawEnemies(motion) {
     const sprite=skin ? (skin.art.complete && skin.art.naturalWidth ? skin.art : skin.fallback) : CourtArt.enemies[Number(m.boss)];
     const sw=sprite.naturalWidth || sprite.width, sh=sprite.naturalHeight || sprite.height;
     const scale=Math.min(size/sw,size/sh);
-    g.drawImage(sprite,m.x-sw*scale/2,m.y-sh*scale*.62+stride,sw*scale,sh*scale);
+    if(m.model) {
+      g.save();
+      g.translate(m.x,m.y+8-stride);
+      g.scale(m.facing<0?-1:1,1);
+      if(walking) {
+        g.rotate(Math.sin(m.step*Math.PI)*.085);
+        g.scale(1+stride*.018,1-stride*.009);
+      }
+      g.drawImage(sprite,-sw*scale/2,-sh*scale,sw*scale,sh*scale);
+      g.restore();
+      if(m.warded) {
+        g.filter='none';
+        g.lineWidth=m.breakTime>0?3:1.6;
+        g.strokeStyle=m.breakTime>0?'#ffb799':'#9dbaff';
+        g.beginPath();
+        g.ellipse(m.x,m.y-size*.25,size*.48,size*.42,0,0,Math.PI*2);
+        g.stroke();
+      }
+    } else g.drawImage(sprite,m.x-sw*scale/2,m.y-sh*scale*.62+stride,sw*scale,sh*scale);
     g.filter = 'none';
     const width = m.boss ? 40 : 26;
     g.fillStyle = '#24202d';
-    g.fillRect(m.x-width/2,m.y-size*.54-5,width,5);
+    g.fillRect(m.x-width/2,m.y-(m.model?size*.94:size*.54)-5,width,5);
     g.fillStyle = m.model?.color ?? (m.boss ? '#ffb675' : '#99e1bc');
-    g.fillRect(m.x-width/2+1,m.y-size*.54-4,(width-2)*m.hp/m.max,3);
+    g.fillRect(m.x-width/2+1,m.y-(m.model?size*.94:size*.54)-4,(width-2)*m.hp/m.max,3);
   }
 }
 
@@ -458,6 +562,16 @@ function drawEffects(motion) {
   }
   for (const p of particles) {
     const progress = 1-p.life/p.duration;
+    if(p.dust) {
+      g.globalAlpha=(1-progress)*.40;
+      g.fillStyle=p.color;
+      for(let i=0;i<3;i++) {
+        g.beginPath();
+        g.arc(p.x+(i-1)*p.radius*progress,p.y-i*2-progress*5,1+i,0,Math.PI*2);
+        g.fill();
+      }
+      continue;
+    }
     g.globalAlpha = 1-progress;
     g.strokeStyle = p.color;
     g.fillStyle = p.color;
@@ -482,6 +596,10 @@ function draw() {
   drawGuardians(motion);
   drawEnemies(motion);
   drawEffects(motion);
+  if(motion && fieldImpact>0) {
+    g.fillStyle='rgba(255,202,155,'+(fieldImpact*.48)+')';
+    g.fillRect(0,0,W,H);
+  }
 }
 
 function frame(now) {
@@ -626,6 +744,7 @@ function syncFocus() {
 }
 syncSoundButton();
 if(expedition) {
+  $('interrupt').onclick=interrupt;
   $('recipes').onclick=showRecipes;
   $('market').onclick=showMarket;
   $('modalBody').addEventListener('click',event=>{
@@ -639,7 +758,7 @@ if(expedition) {
     if(card) selectFormation(Number(card.dataset.unit));
   });
   $('focus').onclick=()=>{state.bossFocus=!state.bossFocus;syncFocus();persist();};
-  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 동료 카드 두 장을 차례로 누르면 전장 위치가 바뀝니다. 4·8·12·16웨이브에는 반드시 저지해야 하는 보스가 등장합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
+  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 동료 카드 두 장을 차례로 누르면 전장 위치가 바뀝니다. 4·8·12·16웨이브에는 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
   syncFocus();
 }
 if (state.gameover) end();
