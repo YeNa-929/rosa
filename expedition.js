@@ -157,6 +157,12 @@ const ZundaExpedition = (() => {
     };
   });
 
+  const specialties = {
+    seria:{skill:'새벽 폭발 · 주변 적에게 공격력의 62% 피해',splashRadius:86,splashDamage:.62},
+    rune:{skill:'빙결 주문 · 3.2초 동안 적 이동 속도 65% 감소',slowDuration:3.2,slowFactor:.35},
+    tessa:{skill:'연쇄 사격 · 가장 가까운 적 최대 3명에게 추가 피해',chainCount:3},
+    kaela:{skill:'갑옷 가르기 · 방어 무시, 장갑 적에게 피해 25% 증가',armorBonus:1.25}
+  };
   const heroines = [
     {type:124,first:15,second:16,name:'새벽검 로사',effect:'burst',color:'#ffaf80',dmg:134,rate:1.06,range:178,slug:'seria'},
     {type:125,first:18,second:19,name:'서리술사 프패',effect:'frost',color:'#bceaff',dmg:116,rate:1.23,range:182,slug:'rune'},
@@ -164,18 +170,18 @@ const ZundaExpedition = (() => {
     {type:127,first:14,second:20,name:'월식검 빰',effect:'pierce',color:'#dfb4ff',dmg:146,rate:.98,range:185,slug:'kaela'}
   ];
   forms.push(...heroines.map(hero=>({
-    ...hero,hue:0,silhouette:'hero',projectile:410,skill:effects[hero.effect],
+    ...hero,...specialties[hero.slug],hue:0,silhouette:'hero',projectile:410,
     portrait:'assets/heroines/'+hero.slug+'.webp',
     attack:'assets/heroines/'+hero.slug+'-attack.webp'
   })));
 
   const rookies = [
-    {type:128,name:'여행자 로사',effect:'burst',dmg:24,rate:.97,range:137,slug:'seria'},
-    {type:129,name:'견습술사 프패',effect:'frost',dmg:15,rate:1.34,range:142,slug:'rune'},
-    {type:130,name:'정찰궁 소설가',effect:'chain',dmg:17,rate:1.05,range:147,slug:'tessa'},
-    {type:131,name:'수련검 빰',effect:'pierce',dmg:23,rate:1.05,range:133,slug:'kaela'}
+    {type:128,name:'여행자 로사',effect:'burst',dmg:26,rate:.92,range:137,slug:'seria'},
+    {type:129,name:'견습술사 프패',effect:'frost',dmg:16,rate:1.38,range:143,slug:'rune'},
+    {type:130,name:'정찰궁 소설가',effect:'chain',dmg:19,rate:1.06,range:162,slug:'tessa'},
+    {type:131,name:'수련검 빰',effect:'pierce',dmg:28,rate:.99,range:129,slug:'kaela'}
   ].map((rookie,i)=>({
-    ...rookie,starter:true,color:heroines[i].color,skill:effects[rookie.effect],silhouette:'hero',
+    ...rookie,...specialties[rookie.slug],color:heroines[i].color,silhouette:'hero',
     portrait:'assets/heroines/'+rookie.slug+'-starter.webp'
   }));
   const fusionRecipes = [

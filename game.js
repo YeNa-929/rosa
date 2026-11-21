@@ -251,14 +251,14 @@ const choosing = () => state.phase==='draft'||state.phase==='reward';
 function showChoices() {
   const draft = state.phase==='draft';
   const contract=sectorOffer();
-  const options = draft ? cast.map(character=>character.type) : contract ? ['standard','rush','armor'] : state.offers;
+  const options = draft ? ZundaExpedition.rookies.map(character=>character.type) : contract ? ['standard','rush','armor'] : state.offers;
   const buttons = options.map(i => {
     const title = draft ? roster[i].name : contract ? sectorRules[i].title : supplies[i][0];
-    const detail = draft ? (roster[i].starter ? '기본형 · ' : '')+roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
+    const detail = draft ? '기본형 · '+roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
     const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
     return `<button data-choice="${i}">${art}<b>${title}</b><small>${detail}</small></button>`;
   });
-  showModal(`<h2>${draft?'첫 동료를 선택하세요':contract?'다음 구역의 작전을 고르세요':'원정 보급품을 고르세요'}</h2><p>${draft?'동료를 영입하고 같은 동료·등급 두 명을 합쳐 32웨이브까지 돌파하세요.':contract?'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
+  showModal(`<h2>${draft?'첫 동료를 선택하세요':contract?'다음 구역의 작전을 고르세요':'원정 보급품을 고르세요'}</h2><p>${draft?'네 명 중 한 명과 원정을 시작하세요. 각 동료의 고유 능력은 상위 조합 후에도 이어집니다.':contract?'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
   $('close').hidden=true;
   const choices=$('modalBody').querySelectorAll('[data-choice]');
   for(const button of choices) button.onclick=()=>{
@@ -466,23 +466,25 @@ function damageMob(m, damage, color, life = .27, radius = 17) {
 
 function hit(m, damage, source) {
   if (m.hp <= 0) return;
-  const effect=roster[source.type].effect;
+  const unit=roster[source.type], effect=unit.effect;
+  if(unit.armorBonus && m.armor>0) damage*=unit.armorBonus;
   const afterArmor=(mob,amount)=>effect==='pierce' ? amount : amount*(1-mob.armor);
   if(effect==='execute' && m.hp <= m.max*.4) damage*=1.75;
   damageMob(m,afterArmor(m,damage),source.color);
-  if(effect==='frost' && m.hp>0) {
-    m.slow=2.9;
-    m.slowFactor=.51;
+  if((effect==='frost' || source.type===3) && m.hp>0) {
+    const factor=unit.slowFactor ?? (source.type===3 ? .55 : .51);
+    if(m.slow<=0 || factor<=m.slowFactor) {
+      m.slow=unit.slowDuration ?? (source.type===3 ? 2.5 : 2.9);
+      m.slowFactor=factor;
+    }
   }
   if(effect==='chain' || effect==='burst') {
-    const radius=effect==='chain'?95:74;
-    const neighbors=mobs.filter(other=>other!==m && other.hp>0 && Math.hypot(other.x-m.x,other.y-m.y)<radius);
-    const targets=effect==='chain' ? neighbors.slice(0,2) : neighbors;
-    for(const other of targets) damageMob(other,afterArmor(other,damage*.43),source.color);
-  }
-  if (source.type === 3) {
-    m.slow = 2.5;
-    m.slowFactor = .55;
+    const radius=unit.splashRadius ?? (effect==='chain' ? 95 : 74);
+    const distance=other=>Math.hypot(other.x-m.x,other.y-m.y);
+    const neighbors=mobs.filter(other=>other!==m && other.hp>0 && distance(other)<radius);
+    if(unit.chainCount) neighbors.sort((a,b)=>distance(a)-distance(b));
+    const targets=effect==='chain' ? neighbors.slice(0,unit.chainCount ?? 2) : neighbors;
+    for(const other of targets) damageMob(other,afterArmor(other,damage*(unit.splashDamage ?? .43)),source.color);
   }
   if (source.type === 4) {
     for (const other of mobs) {
@@ -1133,14 +1135,12 @@ function showTitleScreen() {
 
 // Change the release ID and notes together when publishing a player-facing update.
 const release = {
-  id:'2026-11-21-title-screen',
-  title:'새 타이틀 화면과 원정대 동료',
+  id:'2026-11-21-four-starters',
+  title:'네 명의 시작 동료',
   notes:[
-    '타이틀 화면에서 게임 시작하기를 눌러 원정을 시작할 수 있습니다.',
-    '첫 동료 선택창에서 로사, 프패, 소설가, 빰의 기본형을 고를 수 있습니다.',
-    '상위 조합 동료 새벽검 로사, 서리술사 프패, 뇌전궁 소설가, 월식검 빰을 만나보세요.',
-    '아군 용 네 마리가 새 일러스트를 얻었고, 적군에는 인간형 추적병·돌격병·방패병이 합류했습니다.',
-    '아군과 겹치는 적은 잠시 반투명해집니다. 전투 음악 3곡과 보스 경고음도 추가됐습니다.'
+    '새 원정의 첫 동료를 로사, 프패, 소설가, 빰 중 한 명으로 고릅니다.',
+    '새벽 폭발, 빙결 주문, 연쇄 사격, 갑옷 가르기 중 원하는 전투 방식으로 시작하세요.',
+    '고유 능력은 상위 조합형으로 진화한 뒤에도 이어집니다.'
   ]
 };
 const releaseKey='rosa-expedition-seen-release';
