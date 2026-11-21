@@ -243,57 +243,34 @@ function unitPos(i) {
           y: H * [.286,.382,.624][row]};
 }
 
-const supplies = [
-  ['훈련 일지','공격력 +18%',()=>{state.power+=.18}],
-  ['응원 배지','공격 속도 +15%',()=>{state.tempo+=.15}],
-  ['간식 꾸러미','생명 6 회복 · 보석 2개',()=>{state.life=Math.min(25,state.life+6);state.gems+=2}],
-  ['보급 상자','골드 45 · 보석 4개',()=>{state.gold+=45;state.gems+=4}],
-  ['정예 도전','다음 적 체력 +40% · 통과하면 보석 7개 추가',()=>{state.elite=true}],
-  ['동료 지원','동료 한 명 영입 · 만석이면 보석 4개',()=>{
-    if(state.units.length<storageLimit) recruit(recruitPool[Math.floor(Math.random()*recruitPool.length)].type);
-    else state.gems+=4;
-  }]
-];
 function recruit(type) {
   state.units.push({id:uid++,type,tier:1,reserve:expedition&&deployedCount()>=capacity(),cool:0,born:visualTime});
 }
 const choosing = () => state.phase==='draft'||state.phase==='reward';
 function showChoices() {
   const draft = state.phase==='draft';
-  const contract=sectorOffer();
-  const options = draft ? ZundaExpedition.rookies.map(character=>character.type) : contract ? ['standard','rush','armor'] : state.offers;
-  const buttons = options.map(i => {
-    const title = draft ? roster[i].name : contract ? sectorRules[i].title : supplies[i][0];
-    const detail = draft ? '기본형 · '+roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
-    const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
+  const options=draft ? ZundaExpedition.rookies.map(character=>character.type) : ['standard','rush','armor'];
+  const buttons=options.map(i=>{
+    const title=draft ? roster[i].name : sectorRules[i].title;
+    const detail=draft ? '기본형 · '+roster[i].skill : sectorRules[i].detail;
+    const art=draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
     return `<button data-choice="${i}" ${draft ? `style="--starter-accent:${roster[i].color}"` : ''}>${art}<b>${title}</b><small>${detail}${draft ? '<span class="starter-weapon">전용 무기 '+roster[i].gear.name+'</span>' : ''}</small></button>`;
   });
-  showModal(`<h2>${draft?'첫 동료를 선택하세요':contract?'다음 구역의 작전을 고르세요':'원정 보급품을 고르세요'}</h2><p>${draft?'네 명 중 한 명과 원정을 시작하세요. 각 동료의 고유 능력은 상위 조합 후에도 이어집니다.':contract?'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
+  showModal(`<h2>${draft?'첫 동료를 선택하세요':'다음 구역의 작전을 고르세요'}</h2><p>${draft?'네 명 중 한 명과 원정을 시작하세요. 각 동료의 고유 능력은 상위 조합 후에도 이어집니다.':'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.'}</p><div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
   $('modal').classList.toggle('starter-screen',draft);
   $('close').hidden=true;
   const choices=$('modalBody').querySelectorAll('[data-choice]');
   for(const button of choices) button.onclick=()=>{
     if(!choosing()) return;
-    const i=contract ? button.dataset.choice : Number(button.dataset.choice);
-    if(draft) recruit(i);
-    else {
-      const previous=ZundaExpedition.region(state.wave);
-      if(contract) {
-        state.contract=i;
-        if(i==='standard') state.life=Math.min(25,state.life+4);
-      } else supplies[i][2]();
-      state.wave++;
-      state.shopCount=0;
-      state.tactics=2;
-      state.shield=0;
-      command=null;
-      slowField=null;
-      if(previous!==ZundaExpedition.region(state.wave) || state.wave===17) resize();
+    if(draft) {
+      recruit(Number(button.dataset.choice));
+      state.phase='wave';
+      state.spawnTimer=.9;
+    } else {
+      state.contract=button.dataset.choice;
+      if(state.contract==='standard') state.life=Math.min(25,state.life+4);
+      advanceExpeditionWave();
     }
-    state.phase='wave';
-    state.offers=[];
-    state.spawned=0;
-    state.spawnTimer=.9;
     $('modal').classList.remove('starter-screen');
     $('close').hidden=false;
     closeModal();
@@ -308,7 +285,31 @@ const sectorRules={
   rush:{title:'가속 전선',detail:'적 이동 +18% · 매 웨이브 보석 +4',speed:1.18,armor:0,gems:4,gold:0},
   armor:{title:'철갑 전선',detail:'적 장갑 +12%p · 매 웨이브 골드 +55',speed:1,armor:.12,gems:0,gold:55}
 };
-const sectorOffer=()=>expedition && state.phase==='reward' && state.wave%4===0;
+const sectorOffer=()=>expedition && state.phase==='reward' && state.wave%bossInterval===0;
+function advanceExpeditionWave() {
+  const previous=ZundaExpedition.region(state.wave);
+  state.wave++;
+  state.shopCount=0;
+  state.tactics=2;
+  state.shield=0;
+  state.phase='wave';
+  state.offers=[];
+  state.spawned=0;
+  state.spawnTimer=.9;
+  command=null;
+  slowField=null;
+  if(previous!==ZundaExpedition.region(state.wave) || state.wave===17) resize();
+}
+function continueWithSupplies() {
+  const wave=state.wave;
+  state.gems++;
+  state.gold+=10;
+  state.life=Math.min(25,state.life+2);
+  state.power+=.07;
+  state.tempo+=.05;
+  advanceExpeditionWave();
+  announce(wave+'웨이브 완료 · 자동 보급 지급');
+}
 function clearWave() {
   const bonus=expedition ? sectorRules[state.contract] : null;
   state.gems+=5+(state.elite?7:0)+(bonus?.gems??0);
@@ -322,11 +323,11 @@ function clearWave() {
     state.cleared=true;
     end();
     return;
-  } else {
+  } else if(state.wave%bossInterval===0) {
     state.phase='reward';
-    const pool=supplies.map((_,i)=>i);
-    state.offers=Array.from({length:3},()=>pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
     showChoices();
+  } else {
+    continueWithSupplies();
   }
   persist();
 }
@@ -1373,7 +1374,11 @@ if(expedition) {
 }
 function enterGame() {
   if(state.gameover) end();
-  else if(choosing()) { refresh(); showChoices(); }
+  else if(expedition && state.phase==='reward' && !sectorOffer()) {
+    continueWithSupplies();
+    refresh();
+    persist();
+  } else if(choosing()) { refresh(); showChoices(); }
   else {
     refresh();
     announce(expedition?'로사 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
@@ -1401,7 +1406,8 @@ const release = {
   title:'전장 드래그 배치와 동료 진화 메뉴',
   notes:[
     '전장 캐릭터 또는 동료 카드를 드래그해 원하는 배치 칸에 놓습니다. 동료가 있는 칸에 놓으면 자리를 바꿉니다.',
-    '캐릭터를 탭하면 조합 재료 이미지와 보유 여부를 바로 확인하고 조합할 수 있습니다.'
+    '캐릭터를 탭하면 조합 재료 이미지와 보유 여부를 바로 확인하고 조합할 수 있습니다.',
+    '일반 웨이브는 자동 보급을 받고 바로 이어집니다. 보스 격파 뒤에만 다음 구역의 작전을 선택합니다.'
   ]
 };
 const releaseHistory = [
