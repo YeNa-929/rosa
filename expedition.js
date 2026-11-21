@@ -203,7 +203,8 @@ const ZundaExpedition = (() => {
     {type:131,name:'수련검 빰',effect:'pierce',dmg:28,rate:.99,range:129,slug:'kaela'}
   ].map((rookie,i)=>({
     ...rookie,...specialties[rookie.slug],color:heroines[i].color,silhouette:'hero',
-    portrait:'assets/heroines/'+rookie.slug+'-starter.webp'
+    portrait:'assets/heroines/'+rookie.slug+'-starter.webp',
+    attack:'assets/heroines/'+rookie.slug+'-starter-attack.webp'
   }));
   const middleForms = [
     {type:132,first:128,second:1,name:'여명 기사 로사',dmg:67,rate:.98,range:157},
@@ -212,7 +213,7 @@ const ZundaExpedition = (() => {
     {type:135,first:131,second:30,name:'초승검 빰',dmg:74,rate:.99,range:151}
   ].map(form=>{
     const base=rookies.find(rookie=>rookie.type===form.first);
-    return {...base,...form,hue:0,projectile:390,portrait:'assets/heroines/'+base.slug+'-vanguard.webp'};
+    return {...base,...form,hue:0,projectile:390,attack:null,portrait:'assets/heroines/'+base.slug+'-vanguard.webp'};
   });
   forms.push(...finalForms,...middleForms,...humanChampions);
   const fusionRecipes = [

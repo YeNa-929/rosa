@@ -275,3 +275,14 @@ body[data-expedition] {
 
 .starter-screen .starter-choices small { word-break:keep-all; overflow-wrap:break-word; }
 .starter-weapon { display:block; margin-top:2px; color:var(--starter-accent); }
+
+.auto-recruit-feed {
+  margin:5px 0 0;
+  padding:4px 7px;
+  border-inline-start:2px solid #b6d987;
+  color:#d9efb9;
+  background:#1b2b3b;
+  font-size:12px;
+  line-height:1.35;
+}
+.auto-recruit-feed:empty { display:none; }

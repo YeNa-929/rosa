@@ -45,7 +45,7 @@ const expeditionSprites = expedition ? portraits.map((src,i) => {
   image.src=src;
   return image;
 }) : [];
-const attackSprites = expedition ? new Map([...cast.filter(c=>c.tile), ...ZundaExpedition.forms.filter(form=>form.attack)].map(c=>{
+const attackSprites = expedition ? new Map([...cast.filter(c=>c.tile || c.attack), ...ZundaExpedition.forms.filter(form=>form.attack)].map(c=>{
   const image=new Image();
   image.src=c.attack ?? 'assets/attacks/'+c.tile+'.webp';
   return [c.type,image];
@@ -370,6 +370,10 @@ function summon(silent=false) {
   const r=Math.random(), type=expedition ? drawRecruit(r) : r<.26?0:r<.48?1:r<.69?2:r<.85?3:r<.96?4:5;
   recruit(type);
   refresh();
+  if(silent && expedition) {
+    const unit=state.units.at(-1);
+    $('autoRecruitFeed').textContent='자동 소환 · '+roster[type].name+' · '+(unit.reserve?'대기 편성':'출전 편성');
+  }
   if(!silent) {
     persist();
     beep(720);
@@ -443,7 +447,7 @@ function restart() {
 }
 function resetRun() {
   state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;
-  if(expedition) {syncFocus();resize();}
+  if(expedition) {syncFocus();resize();$('autoRecruitFeed').textContent='';}
   mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;bossWarningWave=0;
   uid=1;rosterKey=undefined;spellFlash=0;autosummonTimer=0;saveTimer=0;
   $('game').classList.remove('over');
@@ -1263,7 +1267,9 @@ const release = {
   notes:[
     '인간형끼리는 인간형으로, 몬스터끼리는 몬스터로 조합됩니다.',
     '방패병 마렌, 연금술사 베른, 검객 리아, 사막 궁수 자이드를 영입할 수 있습니다. 새 인간형 상위 조합도 네 가지 추가했습니다.',
-    '일부 비슷한 용과 몬스터는 신규 영입·조합에서 제외했습니다. 이미 영입한 동료는 계속 사용할 수 있습니다.'
+    '일부 비슷한 용과 몬스터는 신규 영입·조합에서 제외했습니다. 이미 영입한 동료는 계속 사용할 수 있습니다.',
+    '로사, 프패, 소설가, 빰의 기본형에 전용 공격 자세를 추가했습니다.',
+    '자동 소환 결과는 전투를 멈추지 않고 화면 하단에 표시합니다.'
   ]
 };
 const releaseHistory = [
