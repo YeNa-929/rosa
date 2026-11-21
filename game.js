@@ -8,13 +8,34 @@ const roster=[
  {name:'하트 여왕',color:'#ff8194',dmg:47,rate:.65,range:155,projectile:430,skill:'주변 적에게 범위 피해'},
  {name:'흰 왕',color:'#a9d7ff',dmg:80,rate:.48,range:172,projectile:450,skill:'강력한 관통 공격'}
 ];
-const portraits = roster.map((_, type) => CourtArt.portrait(type));
+const expedition = document.body.hasAttribute('data-expedition');
+const cast = [
+  ['즌다몬','zundamon_s/zzm_zunmon037.png','#adec8b'],
+  ['도호쿠 즌코','zun_s/zzm_z047.png','#d7f290'],
+  ['도호쿠 키리탄','kiri_s/zzm_kiri_3038.png','#ffb481'],
+  ['시코쿠 메탄','methane_s/zzm_met013.png','#eca9ee'],
+  ['도호쿠 이타코','ita_s/zzm_ita_3035.png','#f3b3b8'],
+  ['큐슈 소라','sora_s/zzm_sora_014.png','#b9e6ff']
+];
+if (expedition) roster.forEach((unit,i) => { [unit.name, , unit.color] = cast[i]; });
+const portraits = roster.map((_,i) => expedition ? 'https://zunko.jp/sozai/'+cast[i][1] : CourtArt.portrait(i));
+const expeditionSprites = expedition ? portraits.map(src => {
+  const image = new Image();
+  image.referrerPolicy = 'no-referrer';
+  image.src = src;
+  return image;
+}) : [];
+const bossInterval = expedition ? 4 : 5;
+const finalWave = 12;
+const rosterLimit = expedition ? 12 : 18;
+const mergeCount = expedition ? 2 : 3;
+const keepPhase = phase => expedition && ['draft','reward'].includes(phase) ? phase : 'wave';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let terrain, path, lengths, pathLength, rosterKey, rosterOver, nextRefresh = 0, spellFlash = 0;
-const SAVE='wonderland-defense-v2';let state, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0;
-const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false});
-try{const s=JSON.parse(localStorage.getItem(SAVE)||'null');state=s&&Number.isFinite(s.wave)&&Array.isArray(s.units)?{...fresh(),...s,spawned:0,phase:'wave',spawnTimer:.8,breakTimer:0,paused:s.gameover===true||s.life===0,gameover:s.gameover===true||s.life===0,units:s.units.slice(0,18).filter(u=>roster[u.type]&&u.tier>=1&&u.tier<=4).map(u=>({type:u.type,tier:u.tier,id:uid++,cool:Math.random()}))}:fresh()}catch{state=fresh()}
-function persist(){try{localStorage.setItem(SAVE,JSON.stringify({...state,units:state.units.map(({type,tier})=>({type,tier})),spawned:0,phase:'wave',spawnTimer:.8,breakTimer:0,paused:false}))}catch{}}
+const SAVE=expedition ? 'zunda-expedition-v1' : 'wonderland-defense-v2';let state, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0;
+const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false});
+try{const s=JSON.parse(localStorage.getItem(SAVE)||'null');state=s&&Number.isFinite(s.wave)&&Array.isArray(s.units)?{...fresh(),...s,spawned:0,phase:keepPhase(s.phase),spawnTimer:.8,breakTimer:0,paused:s.gameover===true||s.life===0,gameover:s.gameover===true||s.life===0,units:s.units.slice(0,rosterLimit).filter(u=>roster[u.type]&&u.tier>=1&&u.tier<=4).map(u=>({type:u.type,tier:u.tier,id:uid++,cool:Math.random()}))}:fresh()}catch{state=fresh()}
+function persist(){try{localStorage.setItem(SAVE,JSON.stringify({...state,units:state.units.map(({type,tier})=>({type,tier})),spawned:0,phase:keepPhase(state.phase),spawnTimer:.8,breakTimer:0,paused:false}))}catch{}}
 const beep = CourtAudio.effect;
 function announce(t){$('announcement').textContent=t;$('announcement').style.opacity=1;annTimer=1.7;beep(800)}
 function toast(t){$('toast').textContent=t;$('toast').style.opacity=1;toastTimer=1.9}
@@ -56,15 +77,84 @@ function at(t) {
 }
 
 function unitPos(i) {
+  if(expedition) return {x:W*((i>=8?.14:.30)+(i%4)*.155),y:H*[.275,.377,.61][Math.floor(i/4)]};
   const row = Math.floor(i/6);
   return {x: W * ((row === 2 ? .095 : .295) + (i%6)*.121),
           y: H * [.286,.382,.624][row]};
 }
 
-function spawn(){const boss=state.wave%5===0&&state.spawned===waveTotal()-1;const hp=(boss?550:65)*Math.pow(1.24,state.wave-1);const m={id:uid++,t:0,hp,max:hp,boss,slow:0,slowFactor:1,speed:(boss?.032:.061)*(1+Math.min(state.wave,40)*.007),x:0,y:0};[m.x,m.y]=at(0);mobs.push(m);state.spawned++;if(boss)announce('👑 하트 군단의 보스 등장!')}
+const supplies = [
+  ['훈련 일지','공격력 +18%',()=>{state.power+=.18}],
+  ['응원 배지','공격 속도 +15%',()=>{state.tempo+=.15}],
+  ['간식 꾸러미','생명 6 회복 · 보석 2개',()=>{state.life=Math.min(25,state.life+6);state.gems+=2}],
+  ['보급 상자','골드 45 · 보석 4개',()=>{state.gold+=45;state.gems+=4}],
+  ['정예 도전','다음 적 체력 +40% · 통과하면 보석 7개 추가',()=>{state.elite=true}],
+  ['동료 지원','동료 한 명 영입 · 만석이면 보석 4개',()=>{
+    if(state.units.length<rosterLimit) recruit(Math.floor(Math.random()*roster.length));
+    else state.gems+=4;
+  }]
+];
+function recruit(type) {
+  state.units.push({id:uid++,type,tier:1,cool:0,born:visualTime});
+}
+const choosing = () => state.phase==='draft'||state.phase==='reward';
+function showChoices() {
+  const draft = state.phase==='draft';
+  const options = draft ? [0,1,2] : state.offers;
+  const buttons = options.map(i => {
+    const title = draft ? roster[i].name : supplies[i][0];
+    const detail = draft ? roster[i].skill : supplies[i][1];
+    const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
+    return `<button data-choice="${i}">${art}<b>${title}</b><small>${detail}</small></button>`;
+  });
+  showModal(`<h2>${draft?'첫 동료를 선택하세요':'원정 보급품을 고르세요'}</h2><p>${draft?'동료를 영입하고 같은 동료·등급 두 명을 합쳐 12웨이브까지 돌파하세요.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p><div class="choices">${buttons.join('')}</div>`);
+  $('close').hidden=true;
+  const choices=$('modalBody').querySelectorAll('[data-choice]');
+  for(const button of choices) button.onclick=()=>{
+    if(!choosing()) return;
+    const i=Number(button.dataset.choice);
+    if(draft) recruit(i);
+    else { supplies[i][2](); state.wave++; }
+    state.phase='wave';
+    state.offers=[];
+    state.spawned=0;
+    state.spawnTimer=.9;
+    $('close').hidden=false;
+    closeModal();
+    refresh();
+    persist();
+  };
+  choices[0]?.focus();
+}
+function clearWave() {
+  state.gems+=5+(state.elite?7:0);
+  state.gold+=15+state.wave*4;
+  state.elite=false;
+  if(!expedition) {
+    state.phase='break';
+    state.breakTimer=3;
+    announce('웨이브 클리어! 보석 +5');
+  } else if(state.wave===finalWave) {
+    state.cleared=true;
+    end();
+    return;
+  } else {
+    state.phase='reward';
+    const pool=supplies.map((_,i)=>i);
+    state.offers=Array.from({length:3},()=>pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+    showChoices();
+  }
+  persist();
+}
+function prioritizes(candidate,current) {
+  if(!current) return true;
+  if(state.bossFocus && candidate.boss!==current.boss) return candidate.boss;
+  return candidate.t>current.t;
+}
+function spawn(){const boss=state.wave%bossInterval===0&&state.spawned===waveTotal()-1;const hp=(boss?550:65)*Math.pow(1.24,state.wave-1)*(state.elite?1.4:1);const m={id:uid++,t:0,hp,max:hp,boss,slow:0,slowFactor:1,speed:(boss?.032:.061)*(1+Math.min(state.wave,40)*.007),x:0,y:0};[m.x,m.y]=at(0);mobs.push(m);state.spawned++;if(boss)announce('👑 하트 군단의 보스 등장!')}
 function waveTotal(){return Math.min(12+state.wave*2,65)}
-function summon(silent=false){if(state.gems<2){if(!silent)toast('💎 보석이 부족합니다');return false}if(state.units.length>=18){if(!silent)toast('수호자는 최대 18명입니다');return false}state.gems-=2;const r=Math.random(),type=r<.26?0:r<.48?1:r<.69?2:r<.85?3:r<.96?4:5;state.units.push({id:uid++,type,tier:1,cool:Math.random()*.7, born:visualTime});if(!silent){toast(roster[type].name+' 소환!');beep(720)}refresh();persist();return true}
-function merge(){const groups={};state.units.forEach(u=>{const key=u.type+'-'+u.tier;(groups[key]??=[]).push(u)});const found=Object.values(groups).filter(a=>a.length>=3&&a[0].tier<4).sort((a,b)=>b[0].tier-a[0].tier)[0];if(!found){toast('동일 캐릭터·등급 3명이 필요합니다');return}const ids=new Set(found.slice(0,3).map(u=>u.id)),u=found[0];state.units=state.units.filter(x=>!ids.has(x.id));let type=u.type;if(u.tier===3&&type<5)type++;state.units.push({id:uid++,type,tier:u.tier+1,cool:0,born:visualTime});announce('✨ '+roster[type].name+' '+(u.tier+1)+'성 합성 성공!');refresh();persist()}
+function summon(silent=false){if(state.gems<2){if(!silent)toast('💎 보석이 부족합니다');return false}if(state.units.length>=rosterLimit){if(!silent)toast('편성이 가득 찼습니다');return false}state.gems-=2;const r=Math.random(),type=r<.26?0:r<.48?1:r<.69?2:r<.85?3:r<.96?4:5;state.units.push({id:uid++,type,tier:1,cool:Math.random()*.7, born:visualTime});if(!silent){toast(roster[type].name+' 소환!');beep(720)}refresh();persist();return true}
+function merge(){const groups={};state.units.forEach(u=>{const key=u.type+'-'+u.tier;(groups[key]??=[]).push(u)});const found=Object.values(groups).filter(a=>a.length>=mergeCount&&a[0].tier<4).sort((a,b)=>b[0].tier-a[0].tier)[0];if(!found){toast('동일 캐릭터와 등급이 필요합니다');return}const ids=new Set(found.slice(0,mergeCount).map(u=>u.id)),u=found[0];state.units=state.units.filter(x=>!ids.has(x.id));let type=u.type;if(!expedition&&u.tier===3&&type<5)type++;state.units.push({id:uid++,type,tier:u.tier+1,cool:0,born:visualTime});announce('✨ '+roster[type].name+' '+(u.tier+1)+'성 합성 성공!');refresh();persist()}
 function upgrade(){const cost=30+state.upgrade*25;if(state.gold<cost){toast('🪙 골드가 부족합니다');return}state.gold-=cost;state.upgrade++;announce('⚔ 공격력 '+(state.upgrade*25)+'% 강화!');refresh();persist()}
 function spell(){if(state.spellCD>0){toast('마법 재사용 대기 중');return}state.spellCD=24;spellFlash=.75;mobs.forEach(m=>{if(m.hp<=0)return;damageMob(m,90+state.wave*11,'#9bd7ff',.65,25);m.slow=4;m.slowFactor=.35});announce('🌀 원더랜드 시간 정지!');beep(400,.3);refresh()}
 function refresh() {
@@ -73,7 +163,7 @@ function refresh() {
   $('gems').textContent = s.gems;
   $('gold').textContent = s.gold;
   $('life').textContent = s.life;
-  $('count').textContent = s.units.length + ' / 18';
+  $('count').textContent = s.units.length + ' / ' + rosterLimit;
   $('upgradeCost').textContent = '골드 ' + (30+s.upgrade*25);
   $('speed').textContent = s.speed + '배속';
   $('pause').textContent = s.paused ? '계속' : '일시정지';
@@ -81,9 +171,9 @@ function refresh() {
   $('auto').setAttribute('aria-pressed', s.auto);
   $('autoStatus').textContent = s.auto ? 'ON' : 'OFF';
   $('spellCost').textContent = s.spellCD > 0 ? Math.ceil(s.spellCD)+'초' : '준비 완료';
-  $('roundflag').textContent = s.gameover ? '방어 실패' : s.paused ? '일시정지' :
-    s.phase === 'break' ? '다음 웨이브 · ' + Math.ceil(s.breakTimer) + '초' : '전투 중';
-  $('summon').disabled = s.gameover || s.gems < 2 || s.units.length >= 18;
+  $('roundflag').textContent = s.gameover ? (s.cleared?'원정 성공':'방어 실패') : s.paused ? '일시정지' :
+    s.phase === 'break' ? '다음 웨이브 · ' + Math.ceil(s.breakTimer) + '초' : s.elite ? '정예 전투' : '전투 중';
+  $('summon').disabled = s.gameover || s.gems < 2 || s.units.length >= rosterLimit;
   $('upgrade').disabled = s.gameover || s.gold < 30+s.upgrade*25;
   $('spell').disabled = s.gameover || s.spellCD > 0;
   $('pause').disabled = s.gameover;
@@ -91,7 +181,7 @@ function refresh() {
 
   const boss = mobs.find(m => m.boss && m.hp > 0);
   $('bosslabel').textContent = boss ? '하트 군단 · ' + Math.ceil(boss.hp) + ' / ' + Math.ceil(boss.max)
-    : '다음 보스 · 웨이브 ' + (Math.floor((s.wave-1)/5)*5 + 5 + (s.wave%5===0 && s.spawned===waveTotal() ? 5 : 0));
+    : '다음 보스 · 웨이브 ' + (Math.floor((s.wave-1)/bossInterval)*bossInterval + bossInterval + (s.wave%bossInterval===0 && s.spawned===waveTotal() ? bossInterval : 0));
   $('bossbar').style.width = boss ? boss.hp/boss.max*100 + '%' : '0%';
 
   const key = s.units.map(u => u.type+'-'+u.tier).join(',');
@@ -100,19 +190,21 @@ function refresh() {
   rosterOver = s.gameover;
   const grouped = {};
   s.units.forEach(u => { (grouped[u.type+'-'+u.tier] ??= {u,n:0}).n++; });
-  $('merge').disabled = s.gameover || !Object.values(grouped).some(({u,n}) => n>=3 && u.tier<4);
-  $('cards').innerHTML = Object.values(grouped).map(({u,n}) => `<div class="unitcard" style="--unit:${roster[u.type].color}"><img alt="" src="${portraits[u.type]}"><span>${roster[u.type].name}</span><strong>★${u.tier} ×${n}</strong></div>`).join('')
+  $('merge').disabled = s.gameover || !Object.values(grouped).some(({u,n}) => n>=mergeCount && u.tier<4);
+  $('cards').innerHTML = Object.values(grouped).map(({u,n}) => `<div class="unitcard" style="--unit:${roster[u.type].color}"><img alt="" referrerpolicy="no-referrer" src="${portraits[u.type]}"><span>${roster[u.type].name}</span><strong>★${u.tier} ×${n}</strong></div>`).join('')
     || '<div class="unitcard empty">보석 2개로 첫 수호자를 소환하세요</div>';
 }
 
-function end(){state.gameover=true;state.paused=true;refresh();persist();$('game').classList.add('over');showModal(`<h2>💔 원더랜드 함락</h2><p>${state.wave} 웨이브까지 방어했습니다.</p><p>처치한 적: ${state.kills} · 강화 레벨: ${state.upgrade}</p><button id="retry" class="danger">다시 도전</button>`);$('retry').onclick=restart}
-function restart(){if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();mobs=[];bullets=[];particles=[];uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();announce('🌙 새로운 모험 시작!')}
+function end(){state.gameover=true;state.paused=true;refresh();persist();$('game').classList.toggle('over',!state.cleared);showModal(`<h2>${state.cleared?'원정 성공!':expedition?'원정 종료':'원더랜드 함락'}</h2><p>${state.wave} 웨이브까지 방어했습니다.</p><p>처치한 적: ${state.kills} · 강화 레벨: ${state.upgrade}</p><button id="retry" class="danger">다시 도전</button>`);$('retry').onclick=restart}
+function restart(){if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();if(expedition)syncFocus();mobs=[];bullets=[];particles=[];uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
 function showModal(html) {
+  $('close').hidden = false;
   $('modalBody').innerHTML = html;
   $('modalBody').querySelector('h2').id = 'modalTitle';
   if (!$('modal').open) $('modal').showModal();
 }
-function closeModal() { $('modal').close(); }
+function closeModal() { if(!choosing()) $('modal').close(); }
+if(expedition) $('modal').addEventListener('cancel',event=>{if(choosing())event.preventDefault();});
 $('close').onclick = closeModal;
 $('summon').onclick=()=>summon();$('merge').onclick=merge;$('upgrade').onclick=upgrade;$('spell').onclick=spell;
 $('speed').onclick=()=>{state.speed=state.speed===1?2:state.speed===2?3:1;refresh()};$('pause').onclick=()=>{state.paused=!state.paused;refresh()};$('auto').onclick=()=>{state.auto=!state.auto;refresh();persist()};$('reset').onclick=restart;
@@ -130,14 +222,14 @@ document.addEventListener('visibilitychange', () => {
 });
 addEventListener('pagehide',persist);
 $('help').onclick=()=>showModal('<h2>♠ 게임 방법</h2><p>수호자를 무작위로 소환해 미로를 지나가는 적을 막으세요.</p><ul><li>🎲 소환: 보석 2개 소모</li><li>✨ 합성: 동일 캐릭터와 등급 3개 → 상위 등급 1개</li><li>⚔ 강화: 모든 수호자 공격력 상승</li><li>🌀 마법: 모든 적 피해 + 4초 둔화</li><li>👑 5웨이브마다 보스 등장</li><li>❤️ 적이 출구에 도달하면 생명 감소</li></ul><p>진행 상황은 이 브라우저에만 자동 저장됩니다. 게임 버튼을 처음 누르면 음악을 재생하며, 상단 음표 버튼으로 끌 수 있습니다.</p>');
-$('codex').onclick=()=>showModal('<h2>📖 원더랜드 도감</h2>'+roster.map((t,i)=>`<div class="entry"><img src="${portraits[i]}" alt=""><div><b>${t.name}</b><small>공격 ${t.dmg} · 사거리 ${t.range} · ${t.skill}</small></div></div>`).join('')+'<p>루이스 캐럴의 1865년 소설에서 모티프를 얻은 독립 제작 게임입니다.</p>');
+$('codex').onclick=()=>showModal((expedition?'<h2>원정대 도감</h2>':'<h2>📖 원더랜드 도감</h2>')+roster.map((t,i)=>`<div class="entry"><img referrerpolicy="no-referrer" src="${portraits[i]}" alt=""><div><b>${t.name}</b><small>공격 ${t.dmg} · 사거리 ${t.range} · ${t.skill}</small></div></div>`).join('')+(expedition?'':'<p>루이스 캐럴의 1865년 소설에서 모티프를 얻은 독립 제작 게임입니다.</p>'));
 function damageMob(m, damage, color, life = .27, radius = 17) {
   if (m.hp <= 0) return;
   m.hp -= damage;
   m.flash = visualTime + .13;
   particles.push({x:m.x,y:m.y,life,duration:life,radius,color});
   if (m.hp > 0) return;
-  state.gold += m.boss ? 110 : 5 + Math.floor(state.wave/5);
+  state.gold += m.boss ? 110 : 5 + Math.floor(state.wave/bossInterval);
   state.kills++;
   if (Math.random()<.22 || m.boss) state.gems += m.boss ? 6 : 1;
   particles.push({x:m.x,y:m.y,life:.48,duration:.48,radius:30,color:'#ffd68f'});
@@ -161,14 +253,14 @@ function hit(m, damage, source) {
 }
 
 function update(dt){toastTimer-=dt;annTimer-=dt;if(toastTimer<=0)$('toast').style.opacity=0;if(annTimer<=0)$('announcement').style.opacity=0;
-if(!path||state.paused||state.gameover||$('modal').open)return;
+if(!path||state.paused||state.gameover||choosing()||$('modal').open)return;
 visualTime += dt;
 spellFlash = Math.max(0, spellFlash-dt);
 state.spellCD=Math.max(0,state.spellCD-dt);autosummonTimer-=dt;if(state.auto&&autosummonTimer<=0){summon(true);autosummonTimer=.6}
-if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&state.spawnTimer<=0){spawn();state.spawnTimer=Math.max(.26,.78-state.wave*.013)}if(state.spawned===waveTotal()&&mobs.length===0){state.phase='break';state.breakTimer=3;state.gems+=5;state.gold+=15+state.wave*4;announce('🎉 웨이브 클리어! 보석 +5');persist()}}
+if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&state.spawnTimer<=0){spawn();state.spawnTimer=Math.max(.26,.78-state.wave*.013)}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
 else{state.breakTimer-=dt;if(state.breakTimer<=0){state.wave++;state.spawned=0;state.spawnTimer=.5;state.phase='wave';announce('🌙 WAVE '+state.wave);persist()}}
 for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}m.t+=m.speed*m.slowFactor*dt;[m.x,m.y]=at(m.t);if(m.t>=1){m.hp=-1;state.life-=m.boss?5:1;if(state.life<=0){state.life=0;end();return}}}
-for(let i=0;i<state.units.length;i++){const u=state.units[i],t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(Math.hypot(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&(!target||m.t>target.t))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=t.dmg*Math.pow(2.15,u.tier-1)*(1+state.upgrade*.25)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/(t.rate*(1+(u.tier-1)*.1))}}
+for(let i=0;i<state.units.length;i++){const u=state.units[i],t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(Math.hypot(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=t.dmg*Math.pow(2.15,u.tier-1)*(1+state.upgrade*.25+state.power)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/(t.rate*(1+(u.tier-1)*.1+state.tempo))}}
 for(const b of bullets){if(b.target.hp<=0){b.dead=true;continue}const dx=b.target.x-b.x,dy=b.target.y-b.y,d=Math.hypot(dx,dy);if(d<=Math.max(13,b.speed*dt)){hit(b.target,b.damage,b);b.dead=true}else{const step=Math.min(d,b.speed*dt);b.x+=dx/d*step;b.y+=dy/d*step}}
 bullets=bullets.filter(b=>!b.dead);mobs=mobs.filter(m=>m.hp>0);particles.forEach(p=>p.life-=dt);particles=particles.filter(p=>p.life>0);
 saveTimer+=dt;if(saveTimer>12){saveTimer=0;persist()}}
@@ -195,8 +287,21 @@ function drawGuardians(motion) {
       g.globalAlpha = 1;
     }
     const idle = motion ? Math.sin(visualTime*3+i)*1.2 - 7*arrival : 0;
-    g.drawImage(CourtArt.sprites[u.type],x-size/2-(kick ? Math.cos(u.aim)*kick : 0),
-      y-size*.68+idle-(kick ? Math.sin(u.aim)*kick : 0),size,size);
+    const spriteX=x-(kick ? Math.cos(u.aim)*kick : 0);
+    const spriteY=y+idle-(kick ? Math.sin(u.aim)*kick : 0);
+    const image=expeditionSprites[u.type];
+    if(!expedition) {
+      g.drawImage(CourtArt.sprites[u.type],spriteX-size/2,spriteY-size*.68,size,size);
+    } else if(image.complete && image.naturalWidth) {
+      const scale=Math.min(size*1.18/image.naturalHeight,size*1.25/image.naturalWidth);
+      const width=image.naturalWidth*scale, height=image.naturalHeight*scale;
+      g.drawImage(image,spriteX-width/2,spriteY+size*.42-height,width,height);
+    } else {
+      g.fillStyle=color;
+      g.font='bold 13px system-ui';
+      g.textAlign='center';
+      g.fillText(roster[u.type].name.split(' ').at(-1),x,y);
+    }
     g.font = '9px system-ui';
     g.textAlign = 'center';
     g.fillStyle = '#ffe0a0';
@@ -299,11 +404,22 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+function syncFocus() {
+  const focus=$('focus');
+  focus.setAttribute('aria-pressed',state.bossFocus);
+  focus.textContent=state.bossFocus?'보스 우선':'선두 우선';
+}
 syncSoundButton();
+if(expedition) {
+  $('focus').onclick=()=>{state.bossFocus=!state.bossFocus;syncFocus();persist();};
+  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 전투가 끝나면 보급품을 하나 고릅니다. 4·8·12웨이브에는 보스가 등장합니다. 보스 우선 공격은 사거리 안의 대상을 바꿉니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
+  syncFocus();
+}
 if (state.gameover) end();
+else if (choosing()) { refresh(); showChoices(); }
 else {
   refresh();
-  announce('달빛 장미 정원에 오신 것을 환영합니다');
+  announce(expedition?'즌다 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
 }
 requestAnimationFrame(frame);
 })();
