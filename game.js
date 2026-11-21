@@ -1487,12 +1487,6 @@ if(expedition) {
   function syncViewportLayout() {
     if(!fitEnabled()) setLandscape(innerWidth>=568 && innerWidth>innerHeight);
   }
-  function syncDeviceLayout() {
-    const orientation=screen.orientation?.type;
-    if(!fitEnabled()) return syncViewportLayout();
-    if(orientation) setLandscape(orientation.startsWith('landscape'));
-    else if(typeof window.orientation==='number') setLandscape(Math.abs(window.orientation)===90);
-  }
   function fitScreen(enabled) {
     document.body.classList.toggle('fit-screen',enabled);
     screenButton.setAttribute('aria-pressed',enabled);
@@ -1501,18 +1495,19 @@ if(expedition) {
   }
   syncViewportLayout();
   window.addEventListener('resize',syncViewportLayout);
-  screen.orientation?.addEventListener('change',syncDeviceLayout);
-  if(!screen.orientation) window.addEventListener('orientationchange',syncDeviceLayout);
   screenButton.onclick=async()=>{
     if(document.body.classList.contains('fit-screen')) {
       fitScreen(false);
       try { if(document.fullscreenElement) await document.exitFullscreen(); } catch {}
     } else {
       fitScreen(true);
-      try { await document.documentElement.requestFullscreen?.(); } catch {}
+      try {
+        await document.documentElement.requestFullscreen?.();
+        if(!fitEnabled() && document.fullscreenElement) await document.exitFullscreen();
+      } catch {}
     }
   };
-  document.addEventListener('fullscreenchange',()=>fitScreen(!!document.fullscreenElement));
+  // Keep the fitted layout even if the browser temporarily exits native fullscreen.
   installFormationDrag();
   canvas.addEventListener('click',event=>{
     if(command) fireCommand(event);
@@ -1588,12 +1583,13 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.13',
-  title:'전체 화면 방향 수정과 난이도 상향',
-  notes:['전체 화면에서는 버튼을 눌러 뷰포트가 바뀌어도 현재 방향을 유지합니다.','중후반 적의 체력과 이동 속도를 높이고 보스의 체력을 상향했습니다.']
+  version:'1.14',
+  title:'전체 화면 방향 고정',
+  notes:['전체 화면을 켤 때의 세로·가로 배치를 종료 버튼을 누를 때까지 유지합니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.13',title:'전투 난이도 상향',notes:['중후반 적의 체력과 이동 속도, 보스 체력을 높였습니다.']},
   {version:'1.12',title:'끊김 없는 전투와 전체 화면',notes:['전투 메뉴를 열어도 전투가 계속되고, 돌진 저지와 무적 방패를 제거했습니다.']},
   {version:'1.11',title:'넓어진 전장과 한 줄 동료 메뉴',notes:['동료 버튼을 한 줄에 맞추고 전장과 렌더링 해상도를 개선했습니다.']},
   {version:'1.10',title:'입구 재배치, 자동 조합과 연마석',notes:['웨이브마다 입구로 다시 배치하고, 자동 조합은 한 번 누를 때 한 건을 실행합니다. 무기 강화에는 연마석을 쓰며, 주인공은 각각 한 명만 출전합니다. 드래그 중단도 처리합니다.']},
