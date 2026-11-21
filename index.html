@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#181323">
   <title>로사 원정대 · 비영리 팬게임</title>
-  <meta name="description" content="40종의 동료를 모아 79가지 조합을 발견하고, 네 전장과 32웨이브의 보스에 도전하세요.">
+  <meta name="description" content="40종의 동료를 모아 87가지 조합을 발견하고, 네 전장과 32웨이브의 보스에 도전하세요.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ko_KR">
   <meta property="og:site_name" content="로사 원정대">
   <meta property="og:title" content="로사 원정대 · 크로스오버 디펜스">
-  <meta property="og:description" content="40종의 동료를 모아 79가지 조합을 발견하고, 네 전장과 32웨이브의 보스에 도전하세요.">
+  <meta property="og:description" content="40종의 동료를 모아 87가지 조합을 발견하고, 네 전장과 32웨이브의 보스에 도전하세요.">
   <meta property="og:url" content="https://yena-929.github.io/rosa/">
   <meta property="og:image" content="https://yena-929.github.io/rosa/assets/share/rosa-title-cover.jpg">
   <meta property="og:image:type" content="image/jpeg">
@@ -23,9 +23,9 @@
   <link rel="stylesheet" href="style.css?v=zunda-evolutions">
   <script defer src="art.js?v=moonlit-rose-court"></script>
   <script defer src="audio.js?v=battle-score-2"></script>
-  <script defer src="expedition.js?v=fusion-lineages-1"></script>
-  <script defer src="game.js?v=auto-formation-1"></script>
-  <link rel="stylesheet" href="zunda.css?v=auto-formation-1">
+  <script defer src="expedition.js?v=unit-weapons-1"></script>
+  <script defer src="game.js?v=unit-weapons-1"></script>
+  <link rel="stylesheet" href="zunda.css?v=unit-weapons-1">
 </head>
 <body data-expedition>
   <main id="game">
@@ -43,39 +43,38 @@
       <div class="stat life"><span>생명</span><b id="life">25</b></div>
     </section>
     <section id="boss" aria-label="보스 현황">
-      <div id="bosslabel">다음 보스 · 웨이브 4</div>
-      <div class="meter"><i id="bossbar"></i></div>
+      <div class="encounter-info">
+        <div class="field-status"><span id="regionName">별등불 협곡</span><span id="roundflag">전투 중</span></div>
+        <div class="boss-status"><div id="bosslabel">다음 보스 · 웨이브 4</div><div class="meter"><i id="bossbar"></i></div></div>
+      </div>
+      <button id="recon" type="button" aria-label="다음 웨이브 정찰" aria-haspopup="dialog">정찰</button>
     </section>
     <div id="stage">
       <canvas id="board" aria-label="로사 원정대 전투 필드"></canvas>
       <div id="placement" aria-label="전장 배치 위치" hidden></div>
       <div id="aimHint" role="status" hidden></div>
-      <div class="stage-caption"><span id="regionName">별등불 협곡</span><span id="roundflag">전투 중</span></div>
       <div id="announcement" role="status"></div>
       <div id="toast" role="status"></div>
       <div id="chargeMeter" hidden><b id="chargeLabel"></b><div><i id="chargeFill"></i></div></div>
     </div>
+    <p id="waveSupply" class="wave-supply" role="status" aria-atomic="true"></p>
     <section id="roster" aria-label="나의 동료">
-      <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="reserveTab" type="button" aria-pressed="false">대기 0</button><button id="autoDeploy" type="button" title="별 등급과 초당 공격 피해를 기준으로 출전 동료를 편성합니다">자동 배치</button><button id="bench" type="button" hidden>대기열로 이동</button><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
+      <div class="section-title">나의 수호자 <span id="count">0 / 8</span><button id="reserveTab" type="button" aria-pressed="false">대기 0</button><button id="autoDeploy" type="button" title="별 등급과 초당 공격 피해를 기준으로 출전 동료를 편성합니다">자동 배치</button><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
       <div id="cards"></div>
       <p id="autoRecruitFeed" class="auto-recruit-feed" role="status" aria-atomic="true"></p>
     </section>
     <footer>
-      <div class="battle-orders"><button id="tactics" type="button" aria-pressed="false">전술 지령 <small id="tacticsCount">2 / 2</small></button><button id="interrupt" type="button" disabled>돌진 저지 <small id="interruptStatus">돌진 예고에 사용</small></button></div>
       <div class="actions">
         <button id="summon" class="primary"><span aria-hidden="true">✦</span> 영입 <small>보석 2</small></button>
-        <button id="merge"><span aria-hidden="true">❖</span> 합성 <small>동일 2명</small></button>
-        <button id="upgrade"><span aria-hidden="true">↟</span> 강화 <small id="upgradeCost">골드 30</small></button>
-        <button id="spell"><span aria-hidden="true">☾</span> 간식 폭풍 <small id="spellCost">준비 완료</small></button>
+        <button id="upgrade"><span aria-hidden="true">↟</span> 전체 공격 강화 <small id="upgradeCost">골드 30</small></button>
       </div>
+      <div class="battle-orders"><button id="tactics" type="button" aria-pressed="false">전술 지령 <small id="tacticsCount">2 / 2</small></button><button id="interrupt" type="button" disabled>돌진 저지 <small id="interruptStatus">돌진 예고에 사용</small></button></div>
       <div class="subactions">
         <button id="speed">1배속</button>
         <button id="pause" aria-pressed="false">일시정지</button>
-        <button id="codex" aria-haspopup="dialog">도감</button>
         <button id="focus" aria-pressed="false">선두 우선</button>
-        <button id="reset">새 원정</button>
       </div>
-      <div class="tactics"><button id="recipes" aria-haspopup="dialog">동료 조합표</button><button id="market" aria-haspopup="dialog">보급소</button><button id="recon" aria-haspopup="dialog">다음 웨이브 정찰</button><button id="backToTitle" type="button" aria-haspopup="dialog">타이틀로</button></div>
+      <div class="tactics"><button id="recipes" aria-haspopup="dialog">동료 조합표</button><button id="market" aria-haspopup="dialog">보급소</button><button id="backToTitle" type="button" aria-haspopup="dialog">타이틀로</button></div>
       <div class="zunda-credit"><a href="wonderland.html">원더랜드 플레이</a><a href="https://zunko.jp/guideline.html">캐릭터 © SSS LLC.</a></div>
     </footer>
     <dialog id="modal" aria-labelledby="modalTitle">

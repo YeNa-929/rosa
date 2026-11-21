@@ -57,7 +57,7 @@ const storageLimit=expedition?40:rosterLimit;
 let reserveView=false;
 const mergeCount = expedition ? 2 : 3;
 let selectedUnit = null;
-let deploymentPads=[];
+let deploymentPads=[], preferredDeploymentSlots=[];
 let command=null, slowField=null;
 let breaking=null, fieldImpact=0;
 let bossWarningWave=0;
@@ -149,6 +149,7 @@ const beep = CourtAudio.effect;
 function announce(t){$('announcement').textContent=t;$('announcement').style.opacity=1;annTimer=1.7;beep(800)}
 function toast(t){$('toast').textContent=t;$('toast').style.opacity=1;toastTimer=1.9}
 const regionRoutes = [[[-0.08,0.15],[0.89,0.15],[0.89,0.87],[0.1,0.87],[0.1,0.34],[0.71,0.34],[0.71,0.7],[0.31,0.7],[0.31,0.5],[0.53,0.5]],[[1.08,0.19],[0.12,0.19],[0.12,0.88],[0.91,0.88],[0.91,0.36],[0.3,0.36],[0.3,0.72],[0.73,0.72],[0.73,0.53],[0.51,0.53]],[[-0.08,0.18],[0.9,0.18],[0.9,0.89],[0.09,0.89],[0.09,0.39],[0.68,0.39],[0.68,0.73],[0.3,0.73],[0.3,0.55],[0.5,0.55]],[[1.08,0.16],[0.1,0.16],[0.1,0.89],[0.9,0.89],[0.9,0.33],[0.29,0.33],[0.29,0.7],[0.7,0.7],[0.7,0.5],[0.48,0.5]]];
+const battlefieldY=y=>.105+y*.895;
 const regionPads = regionRoutes.map(route=>{
   const pads=[];
   for(let row=0;row<7;row++) {
@@ -161,10 +162,15 @@ const regionPads = regionRoutes.map(route=>{
         const t=Math.max(0,Math.min(1,(qx*dx+qy*dy)/(dx*dx+dy*dy)));
         return Math.hypot(qx-dx*t,qy-dy*t);
       }));
-      if(distance>=16) pads.push({x,y,distance});
+      if(distance>=16) pads.push({x,y:battlefieldY(y),distance});
     }
   }
-  return pads.sort((a,b)=>a.distance-b.distance);
+  pads.sort((a,b)=>a.distance-b.distance);
+  // Append the entrance row so existing saved slot IDs keep their positions.
+  const fromRight=route[0][0]>1;
+  const y=battlefieldY(route[0][1])-.08;
+  for(const [index,x] of [.16,.30,.44,.58].entries()) pads.push({x:fromRight ? 1-x : x,y,entrance:true,label:'입구 '+(index+1)});
+  return pads;
 });
 function reconcileSlots() {
   if(!expedition || deploymentPads.length===0) return;
@@ -178,7 +184,7 @@ function reconcileSlots() {
   }
   for(const unit of state.units) {
     if(unit.reserve || unit.slot!==undefined) continue;
-    unit.slot=deploymentPads.findIndex((_,slot)=>!used.has(slot));
+    unit.slot=preferredDeploymentSlots.find(slot=>!used.has(slot));
     used.add(unit.slot);
   }
   if(!state.units.some(unit=>unit.id===selectedUnit)) selectedUnit=null;
@@ -198,8 +204,13 @@ function resize() {
   if(expedition) {
     const region=Math.floor((state.wave-1)/4)%regionRoutes.length;
     const reverse=state.wave>16;
-    path=regionRoutes[region].map(([x,y])=>[(reverse?1-x:x)*W,y*H]);
+    path=regionRoutes[region].map(([x,y])=>[(reverse?1-x:x)*W,battlefieldY(y)*H]);
     deploymentPads=reverse ? regionPads[region].map(pad=>({...pad,x:1-pad.x})) : regionPads[region];
+    const [startX,startY]=path[0];
+    const distance=pad=>Math.hypot(pad.x*W-startX,pad.y*H-startY);
+    preferredDeploymentSlots=deploymentPads.map((pad,slot)=>({pad,slot}))
+      .sort((a,b)=>Number(!!b.pad.entrance)-Number(!!a.pad.entrance) || distance(a.pad)-distance(b.pad))
+      .map(({slot})=>slot);
     reconcileSlots();
     renderPads();
   }
@@ -300,20 +311,26 @@ function advanceExpeditionWave() {
   slowField=null;
   if(previous!==ZundaExpedition.region(state.wave) || state.wave===17) resize();
 }
-function continueWithSupplies() {
+function continueWithSupplies(gems=0,gold=0) {
   const wave=state.wave;
+  const healed=Math.max(0,Math.min(25-state.life,2));
   state.gems++;
   state.gold+=10;
   state.life=Math.min(25,state.life+2);
   state.power+=.07;
   state.tempo+=.05;
   advanceExpeditionWave();
-  announce(wave+'웨이브 완료 · 자동 보급 지급');
+  reportWaveSupplies(wave,gems+1,gold+10,healed);
+}
+function reportWaveSupplies(wave,gems,gold,healed=0) {
+  $('waveSupply').textContent=wave+'웨이브 보급 · 보석 +'+gems+' · 골드 +'+gold+(healed ? ' · 생명 +'+healed : '');
 }
 function clearWave() {
   const bonus=expedition ? sectorRules[state.contract] : null;
-  state.gems+=5+(state.elite?7:0)+(bonus?.gems??0);
-  state.gold+=15+state.wave*4+(bonus?.gold??0);
+  const gems=5+(state.elite?7:0)+(bonus?.gems??0);
+  const gold=15+state.wave*4+(bonus?.gold??0);
+  state.gems+=gems;
+  state.gold+=gold;
   state.elite=false;
   if(!expedition) {
     state.phase='break';
@@ -324,10 +341,11 @@ function clearWave() {
     end();
     return;
   } else if(state.wave%bossInterval===0) {
+    reportWaveSupplies(state.wave,gems,gold);
     state.phase='reward';
     showChoices();
   } else {
-    continueWithSupplies();
+    continueWithSupplies(gems,gold);
   }
   persist();
 }
@@ -389,7 +407,31 @@ function showRecruitResult(unit,fromMarket=false) {
   $('acceptRecruit').onclick=fromMarket ? showMarket : closeModal;
   $('acceptRecruit').focus();
 }
-function merge(){const groups={};state.units.forEach(u=>{const key=u.type+'-'+u.tier;(groups[key]??=[]).push(u)});const found=Object.values(groups).filter(a=>a.length>=mergeCount&&a[0].tier<4).sort((a,b)=>b[0].tier-a[0].tier)[0];if(!found){toast('동일 캐릭터와 등급이 필요합니다');return}const materials=[...found].sort((a,b)=>Number(a.reserve)-Number(b.reserve)).slice(0,mergeCount);const ids=new Set(materials.map(u=>u.id)),u=materials[0];state.units=state.units.filter(x=>!ids.has(x.id));let type=u.type;if(!expedition&&u.tier===3&&type<5)type++;state.units.push({id:uid++,type,tier:u.tier+1,slot:u.slot,reserve:u.reserve,cool:0,born:visualTime});announce('✨ '+roster[type].name+' '+(u.tier+1)+'성 합성 성공!');refresh();persist()}
+function mergeCompanions(materials,anchor) {
+  const ids=new Set(materials.map(unit=>unit.id));
+  const type=!expedition && anchor.tier===3 && anchor.type<5 ? anchor.type+1 : anchor.type;
+  const merged={id:uid++,type,tier:anchor.tier+1,slot:anchor.slot,reserve:anchor.reserve,cool:0,born:visualTime};
+  state.units=state.units.filter(unit=>!ids.has(unit.id));
+  state.units.push(merged);
+  selectedUnit=null;
+  announce(roster[type].name+' ★'+merged.tier+' 합성 성공!');
+  refresh();
+  persist();
+  return merged;
+}
+function merge() {
+  const groups={};
+  for(const unit of state.units) (groups[unit.type+'-'+unit.tier]??=[]).push(unit);
+  const group=Object.values(groups).filter(items=>items.length>=mergeCount && items[0].tier<4)
+    .sort((a,b)=>b[0].tier-a[0].tier)[0];
+  if(!group) {toast('동일 캐릭터와 등급이 필요합니다');return;}
+  mergeCompanions(group.slice(0,mergeCount),group[0]);
+}
+function mergePartner(unit) {
+  if(unit.tier>=4) return null;
+  return state.units.find(other=>other!==unit && other.type===unit.type && other.tier===unit.tier && other.reserve) ??
+    state.units.find(other=>other!==unit && other.type===unit.type && other.tier===unit.tier) ?? null;
+}
 function upgrade(){const cost=30+state.upgrade*25;if(state.gold<cost){toast('🪙 골드가 부족합니다');return}state.gold-=cost;state.upgrade++;announce('⚔ 공격력 +'+(expedition&&state.upgrade>8?12:25)+'%p');refresh();persist()}
 function spell(){if(state.spellCD>0){toast('마법 재사용 대기 중');return}state.spellCD=24;spellFlash=.75;mobs.forEach(m=>{if(m.hp<=0)return;damageMob(m,90+state.wave*11,'#9bd7ff',.65,25);m.slow=4;m.slowFactor=.35});announce('🌀 원더랜드 시간 정지!');beep(400,.3);refresh()}
 function refresh() {
@@ -408,27 +450,25 @@ function refresh() {
   $('pause').setAttribute('aria-pressed', s.paused);
   $('auto').setAttribute('aria-pressed', s.auto);
   $('autoStatus').textContent = s.auto ? 'ON' : 'OFF';
-  $('spellCost').textContent = s.spellCD > 0 ? Math.ceil(s.spellCD)+'초' : '준비 완료';
+  if(!expedition) $('spellCost').textContent=s.spellCD>0 ? Math.ceil(s.spellCD)+'초' : '준비 완료';
   $('roundflag').textContent = s.gameover ? (s.cleared?'원정 성공':'방어 실패') : s.paused ? '일시정지' :
     s.phase === 'break' ? '다음 웨이브 · ' + Math.ceil(s.breakTimer) + '초' : s.elite ? '정예 전투 · '+s.spawned+'/'+waveTotal() : expedition ? '전투 · '+s.spawned+'/'+waveTotal() : '전투 중';
   $('summon').disabled = s.gameover || s.gems < 2 || s.units.length >= storageLimit;
   $('upgrade').disabled = s.gameover || s.gold < 30+s.upgrade*25;
-  $('spell').disabled = s.gameover || s.spellCD > 0;
+  if(!expedition) $('spell').disabled=s.gameover || s.spellCD>0;
   $('pause').disabled = s.gameover;
   $('auto').disabled = s.gameover;
 
   const boss = mobs.find(m => m.boss && m.hp > 0);
   $('bosslabel').textContent = boss ? (boss.model?.name ?? '하트 군단') + ' · ' + Math.ceil(boss.hp) + ' / ' + Math.ceil(boss.max)
     : '다음 보스 · 웨이브 ' + (Math.floor((s.wave-1)/bossInterval)*bossInterval + bossInterval + (s.wave%bossInterval===0 && s.spawned===waveTotal() ? bossInterval : 0));
+  if(expedition) $('boss').classList.toggle('boss-active',!!boss);
   $('bossbar').style.width = boss ? boss.hp/boss.max*100 + '%' : '0%';
 
   const key = s.units.map(u => u.id+'-'+u.type+'-'+u.tier+'-'+(u.slot??'')+'-'+Number(u.reserve)).join(',')+'|'+selectedUnit+'|'+capacity()+'|'+reserveView;
   if (key === rosterKey && s.gameover === rosterOver) return;
   rosterKey = key;
   rosterOver = s.gameover;
-  const grouped = {};
-  s.units.forEach(u => { (grouped[u.type+'-'+u.tier] ??= {u,n:0}).n++; });
-  $('merge').disabled = s.gameover || !Object.values(grouped).some(({u,n}) => n>=mergeCount && u.tier<4);
   if(expedition) {
     $('market').disabled=s.gameover;
     $('recipes').disabled=s.gameover;
@@ -437,6 +477,9 @@ function refresh() {
     renderPads();
     return;
   }
+  const grouped = {};
+  s.units.forEach(u => { (grouped[u.type+'-'+u.tier] ??= {u,n:0}).n++; });
+  $('merge').disabled = s.gameover || !Object.values(grouped).some(({u,n}) => n>=mergeCount && u.tier<4);
   $('cards').innerHTML = Object.values(grouped).map(({u,n}) => `<div class="unitcard" style="--unit:${roster[u.type].color}"><img alt="" referrerpolicy="no-referrer" src="${portraits[u.type]}"><span>${roster[u.type].name}</span><strong>★${u.tier} ×${n}</strong></div>`).join('')
     || '<div class="unitcard empty">보석 2개로 첫 수호자를 소환하세요</div>';
 }
@@ -448,7 +491,7 @@ function restart() {
 }
 function resetRun() {
   state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;
-  if(expedition) {syncFocus();resize();$('autoRecruitFeed').textContent='';}
+  if(expedition) {syncFocus();resize();$('autoRecruitFeed').textContent='';$('waveSupply').textContent='';}
   mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;bossWarningWave=0;
   uid=1;rosterKey=undefined;spellFlash=0;autosummonTimer=0;saveTimer=0;
   $('game').classList.remove('over');
@@ -475,8 +518,9 @@ if(expedition) $('modal').addEventListener('cancel',event=>{
   if(modalBack) modalBack();
 });
 $('close').onclick=()=>modalBack ? modalBack() : closeModal();
-$('summon').onclick=()=>summon();$('merge').onclick=merge;$('upgrade').onclick=upgrade;$('spell').onclick=spell;
-$('speed').onclick=()=>{state.speed=state.speed===1?2:state.speed===2?3:1;refresh()};$('pause').onclick=()=>{if(saveConflict){location.reload();return;}state.paused=!state.paused;refresh()};$('auto').onclick=()=>{state.auto=!state.auto;refresh();persist()};$('reset').onclick=restart;
+$('summon').onclick=()=>summon();$('upgrade').onclick=upgrade;
+$('speed').onclick=()=>{state.speed=state.speed===1?2:state.speed===2?3:1;refresh()};$('pause').onclick=()=>{if(saveConflict){location.reload();return;}state.paused=!state.paused;refresh()};$('auto').onclick=()=>{state.auto=!state.auto;refresh();persist()};
+if(!expedition) {$('spell').onclick=spell;$('reset').onclick=restart;$('merge').onclick=merge;}
 function syncSoundButton() {
   $('sound').textContent = CourtAudio.enabled ? '♫' : '♪';
   $('sound').setAttribute('aria-pressed',CourtAudio.enabled);
@@ -494,7 +538,8 @@ if(expedition) addEventListener('storage',event=>{
   if(event.key===SAVE && event.newValue!==lastStored) persist();
 });
 $('help').onclick=()=>showModal('<h2>♠ 게임 방법</h2><p>수호자를 무작위로 소환해 미로를 지나가는 적을 막으세요.</p><ul><li>🎲 소환: 보석 2개 소모</li><li>✨ 합성: 동일 캐릭터와 등급 3개 → 상위 등급 1개</li><li>⚔ 강화: 모든 수호자 공격력 상승</li><li>🌀 마법: 모든 적 피해 + 4초 둔화</li><li>👑 5웨이브마다 보스 등장</li><li>❤️ 적이 출구에 도달하면 생명 감소</li></ul><p>진행 상황은 이 브라우저에만 자동 저장됩니다. 게임 버튼을 처음 누르면 음악을 재생하며, 상단 음표 버튼으로 끌 수 있습니다.</p>');
-$('codex').onclick=()=>showModal((expedition?'<h2>원정대 도감</h2>':'<h2>📖 원더랜드 도감</h2>')+roster.map((t,i)=>`<div class="entry"><img referrerpolicy="no-referrer" src="${portraits[i]}" alt=""><div><b>${t.name}</b><small>공격 ${t.dmg} · 사거리 ${t.range} · ${t.skill}</small></div></div>`).join('')+(expedition?'':'<p>루이스 캐럴의 1865년 소설에서 모티프를 얻은 독립 제작 게임입니다.</p>'));
+function showCodex() { showModal((expedition?'<h2>원정대 도감</h2>':'<h2>📖 원더랜드 도감</h2>')+roster.map((t,i)=>`<div class="entry"><img referrerpolicy="no-referrer" src="${portraits[i]}" alt=""><div><b>${t.name}</b><small>공격 ${t.dmg} · 사거리 ${t.range} · ${t.skill}</small></div></div>`).join('')+(expedition?'':'<p>루이스 캐럴의 1865년 소설에서 모티프를 얻은 독립 제작 게임입니다.</p>')); }
+if(!expedition) $('codex').onclick=showCodex;
 function damageMob(m, damage, color, life = .27, radius = 17) {
   if (m.hp <= 0) return;
   m.hp=m.warded ? Math.min(m.hp,Math.max(m.max*m.wardFloor,m.hp-damage)) : m.hp-damage;
@@ -707,7 +752,8 @@ visualTime += dt;
 spellFlash = Math.max(0, spellFlash-dt);
 fieldImpact=Math.max(0,fieldImpact-dt/state.speed);
 if(slowField && (slowField.time-=dt)<=0) slowField=null;
-state.spellCD=Math.max(0,state.spellCD-dt);autosummonTimer-=dt;if(state.auto&&autosummonTimer<=0){summon(true);autosummonTimer=.6}
+if(!expedition) state.spellCD=Math.max(0,state.spellCD-dt);
+autosummonTimer-=dt;if(state.auto&&autosummonTimer<=0){summon(true);autosummonTimer=.6}
 if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&state.spawnTimer<=0){
   const waitingForBoss=expedition && state.wave%bossInterval===0 && state.spawned===waveTotal()-1;
   if(waitingForBoss && bossWarningWave!==state.wave) {
@@ -734,7 +780,7 @@ function drawGuardians(motion) {
       y=u.moveFrom.y+(y-u.moveFrom.y)*progress;
       if(progress>=1) u.moveFrom=null;
     }
-    const color = roster[u.type].color;
+    const unit=roster[u.type], color=unit.color;
     const size=expedition ? Math.min(W*.094,H*.11,43) : Math.min(W*.111,H*.119,49);
     const attackAge=visualTime-(u.fired ?? -1);
     const shot = Math.max(0,1-attackAge/.27);
@@ -782,7 +828,13 @@ function drawGuardians(motion) {
       g.save();
       g.translate(spriteX,spriteY+size*.42);
       if(strike && Math.cos(u.aim)<0) g.scale(-1,1);
-      if(!strike && motion && shot) g.rotate(Math.cos(u.aim)*shot*.14);
+      if(!strike && motion && shot) {
+        const pulse=Math.sin(shot*Math.PI);
+        const thrust=unit.effect==='pierce' || unit.effect==='execute';
+        if(unit.effect==='frost' || unit.effect==='chain') g.translate(0,-size*.11*pulse);
+        g.rotate(Math.cos(u.aim)*pulse*(thrust ? .23 : .13));
+        g.scale(1+pulse*(thrust ? .18 : .10),1-pulse*.08);
+      }
       g.drawImage(image,-width/2,-height,width,height);
       silhouettes.push({id:u.id,left:spriteX-width/2,right:spriteX+width/2,bottom:spriteY+size*.42,height});
       g.restore();
@@ -965,7 +1017,7 @@ function autoDeploy() {
     unit.moveFrom=null;
   }
   const kept=new Set(picked.filter(unit=>!unit.reserve && deploymentPads[unit.slot]).map(unit=>unit.slot));
-  const free=deploymentPads.map((_,slot)=>slot).filter(slot=>!kept.has(slot));
+  const free=preferredDeploymentSlots.filter(slot=>!kept.has(slot));
   let moved=0;
   for(const unit of picked) {
     if(!unit.reserve && deploymentPads[unit.slot]) continue;
@@ -985,7 +1037,7 @@ function renderFormation() {
   $('autoDeploy').disabled=state.gameover || !state.units.length;
   $('reserveTab').textContent=reserveView?'출전 보기':'대기 '+(state.units.length-deployedCount());
   $('reserveTab').setAttribute('aria-pressed',reserveView);
-  $('cards').innerHTML=state.units.filter(u=>!!u.reserve===reserveView).map(u=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" draggable="false" referrerpolicy="no-referrer" src="${portraits[u.type]}" style="--portrait-hue:${roster[u.type].hue??0}deg"><span>${roster[u.type].name}</span><strong>${u.reserve?'대기':(u.slot+1)+'번'} · ★${u.tier}</strong></button>`).join('')
+  $('cards').innerHTML=state.units.filter(u=>!!u.reserve===reserveView).map(u=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" draggable="false" referrerpolicy="no-referrer" src="${portraits[u.type]}" style="--portrait-hue:${roster[u.type].hue??0}deg"><span>${roster[u.type].name}</span><strong>${u.reserve?'대기':(deploymentPads[u.slot]?.label ?? (u.slot+1)+'번')} · ★${u.tier}</strong></button>`).join('')
     || '<div class="unitcard empty">'+(reserveView?'대기 중인 동료가 없습니다':'보석 2개로 동료를 영입하세요')+'</div>';
 }
 function renderPads() {
@@ -993,14 +1045,11 @@ function renderPads() {
   if(!layer) return;
   const active=selectedUnit!==null && !state.gameover;
   layer.hidden=!active;
-  const selected=state.units.find(unit=>unit.id===selectedUnit);
-  $('bench').hidden=!active || !selected;
-  $('bench').textContent=selected?.reserve?'대기 동료 내보내기':'대기열로 이동';
   if(!active) return;
   const occupied=new Map(state.units.filter(unit=>!unit.reserve).map(unit=>[unit.slot,unit]));
-  layer.innerHTML=deploymentPads.map(({x,y},slot)=>{
+  layer.innerHTML=deploymentPads.map(({x,y,label:padLabel},slot)=>{
     const unit=occupied.get(slot);
-    const label=unit ? (unit.id===selectedUnit?'현재 위치':roster[unit.type].name+'과 위치 교체') : (slot+1)+'번 빈 위치에 배치';
+    const label=unit ? (unit.id===selectedUnit?'현재 위치':roster[unit.type].name+'과 위치 교체') : (padLabel ?? (slot+1)+'번')+' 빈 위치에 배치';
     return `<button type="button" class="deploy-pad ${unit?'occupied':''}" data-pad="${slot}" ${unit?`data-board-unit="${unit.id}"`:''} aria-label="${label}" aria-pressed="${unit?.id===selectedUnit}" style="left:${x*100}%;top:${y*100}%">${unit?'◆':'+'}</button>`;
   }).join('');
 }
@@ -1066,7 +1115,7 @@ function installFormationDrag() {
   function padAt(clientX,clientY) {
     const rect=canvas.getBoundingClientRect();
     if(clientX<rect.left || clientX>rect.right || clientY<rect.top || clientY>rect.bottom) return null;
-    let slot=null, nearest=26;
+    let slot=null, nearest=30;
     for(const [index,pad] of deploymentPads.entries()) {
       const distance=Math.hypot(clientX-(rect.left+pad.x*rect.width),clientY-(rect.top+pad.y*rect.height));
       if(distance<nearest) {nearest=distance;slot=index;}
@@ -1202,6 +1251,20 @@ function showRecipes({filter='all',search='',species='all',result=''}={}) {
 function fusionPortrait(type,status) {
   return `<div><img src="${portraits[type]}" alt="" style="--portrait-hue:${roster[type].hue??0}deg"><strong>${roster[type].name}</strong><small>${status}</small></div>`;
 }
+function renderUnitGrowth(unit) {
+  const cost=trainingCost(unit);
+  const next={...unit,tier:unit.tier+1};
+  const canTrain=unit.tier<4;
+  const increase=canTrain ? ' → '+Math.round(unitAttackDamage(next)) : '';
+  const partner=mergePartner(unit);
+  const stage=roster[unit.type].stage;
+  return `<section class="unit-growth" aria-label="동료 성장">
+    <div><strong>★${unit.tier} · 공격 ${Math.round(unitAttackDamage(unit))}${increase}</strong>
+    ${stage ? `<small>진화 ${stage} / 5단계</small>` : ''}<small>초당 ${unitAttackRate(unit).toFixed(2)}회 · 사거리 ${Math.round(roster[unit.type].range*(1+(unit.tier-1)*.08))}</small><small>보유 보석 ◆ ${state.gems}</small></div>
+    <div class="unit-training-actions"><button id="trainUnit" type="button" ${canTrain && state.gems>=cost?'':'disabled'}>${canTrain ? (state.gems>=cost?'별 훈련':'보석 부족')+' · ◆ '+cost : '훈련 완료'}</button>
+      ${partner ? '<button id="mergeUnitStars" type="button">같은 동료 별 합성</button>' : ''}</div>
+  </section>`;
+}
 function showUnitRecipes(unitId,result='') {
   const picked=state.units.find(unit=>unit.id===unitId);
   if(!picked) return;
@@ -1210,21 +1273,49 @@ function showUnitRecipes(unitId,result='') {
     const owned=ingredients(recipe,unitId);
     return [{recipe,index,owned,ready:owned.every(Boolean)}];
   }).sort((a,b)=>Number(b.ready)-Number(a.ready));
+  const {family,gear}=roster[picked.type];
+  const weapon=gear ? renderUnitWeapon(family,gear) : '';
   const cards=rows.map(({recipe,index,owned,ready})=>{
     const status=unit=>unit ? (unit.id===unitId?'선택 · 있음':'있음')+' · ★'+unit.tier : '없음';
     return `<article class="unit-fusion-card">
       <div class="unit-fusion-pictures">
         ${fusionPortrait(recipe.first,status(owned[0]))}
         ${fusionPortrait(recipe.second,status(owned[1]))}
-        ${fusionPortrait(recipe.type,ready?'결과 · ★'+Math.min(...owned.map(unit=>unit.tier)):'조합 결과')}
+        ${fusionPortrait(recipe.type,(ready?'결과 · ★'+Math.min(...owned.map(unit=>unit.tier)):'조합 결과')+(recipe.stage?' · '+recipe.stage+'단계':''))}
       </div>
       <button type="button" data-unit-fuse="${index}" data-fusion-unit="${unitId}" ${ready?'':'disabled'}>조합하기</button>
     </article>`;
   }).join('');
   showModal(`<h2>${roster[picked.type].name} 조합·진화</h2><p id="recipeStatus" role="status" tabindex="-1">${result || (rows.length?'이 동료를 재료로 쓰는 조합입니다.':'이 동료의 추가 조합은 없습니다.')}</p>
-    <div class="unit-fusion-actions"><button id="pickPlacement" type="button">배치 칸 선택</button><button id="openAllRecipes" type="button">전체 조합표</button></div>
-    <div class="unit-fusion-list">${cards}</div>`);
-  $('openAllRecipes').onclick=()=>showRecipes();
+    <div class="unit-fusion-actions"><button id="pickPlacement" type="button">${picked.reserve?'출전 위치 선택':'배치 칸 선택'}</button><button id="unitReserve" type="button">${picked.reserve?'대기열에서 내보내기':'대기열로 이동'}</button></div>
+    ${renderUnitGrowth(picked)}${weapon}<div class="unit-fusion-list">${cards}</div>`);
+  $('unitReserve').onclick=()=>benchUnit(unitId);
+  const mergeButton=$('mergeUnitStars');
+  if(mergeButton) mergeButton.onclick=()=>{
+    if(state.gameover || saveConflict || choosing()) return;
+    const partner=mergePartner(picked);
+    if(!partner) return;
+    const merged=mergeCompanions([picked,partner],picked.reserve && !partner.reserve ? partner : picked);
+    if(saveConflict) return;
+    showUnitRecipes(merged.id,roster[merged.type].name+' ★'+merged.tier+' 합성 완료!');
+    $('recipeStatus').focus();
+  };
+  $('trainUnit').onclick=()=>{
+    if(!trainUnit(picked)) return;
+    refresh();
+    persist();
+    if(saveConflict) return;
+    showUnitRecipes(unitId,roster[picked.type].name+' ★'+picked.tier+' 훈련 완료!');
+    $('recipeStatus').focus();
+  };
+  if(gear) $('upgradeUnitWeapon').onclick=()=>{
+    if(!upgradeGear(family)) return;
+    refresh();
+    persist();
+    if(saveConflict) return;
+    showUnitRecipes(unitId,gear.name+' +'+state.gear[family]+' 강화 완료!');
+    $('recipeStatus').focus();
+  };
   $('pickPlacement').onclick=()=>{
     closeModal();
     selectedUnit=unitId;
@@ -1271,25 +1362,64 @@ function marketOffers() {
   return options;
 }
 function trainingCost(unit) { return 3+unit.tier*3; }
+function trainUnit(unit) {
+  if(!unit || state.gameover || saveConflict || choosing() || unit.tier>=4 || state.gems<trainingCost(unit)) return false;
+  state.gems-=trainingCost(unit);
+  unit.tier++;
+  return true;
+}
+function benchUnit(id) {
+  const unit=state.units.find(candidate=>candidate.id===id);
+  if(!unit || state.gameover || saveConflict || choosing()) return;
+  if(unit.reserve) {
+    if(!confirm(roster[unit.type].name+'을(를) 대기열에서 내보낼까요?')) return;
+    state.units=state.units.filter(candidate=>candidate!==unit);
+    state.gems++;
+    toast('동료를 내보냈습니다 · 보석 +1');
+  } else {
+    unit.reserve=true;
+    unit.slot=undefined;
+    reserveView=true;
+    toast('대기열로 이동했습니다');
+  }
+  selectedUnit=null;
+  closeModal();
+  refresh();
+  persist();
+}
 const gearCost=[6,11];
 const ownsGearFamily=family=>state.units.some(unit=>roster[unit.type].family===family);
+function gearUpgrade(family) {
+  const rank=state.gear[family] ?? 0;
+  const cost=gearCost[rank];
+  return {rank,cost,available:cost!==undefined && state.gems>=cost};
+}
+function upgradeGear(family) {
+  if(state.gameover || saveConflict || choosing() ||
+     !ZundaExpedition.rookies.some(hero=>hero.family===family) || !ownsGearFamily(family)) return false;
+  const {rank,cost,available}=gearUpgrade(family);
+  if(!available) return false;
+  state.gems-=cost;
+  state.gear[family]=rank+1;
+  return true;
+}
+function renderUnitWeapon(family,gear) {
+  const {rank,cost,available}=gearUpgrade(family);
+  return `<section class="unit-weapon" aria-label="전용 무기">
+    <div><strong>${gear.name} +${rank}</strong><small>${gear.detail}</small></div>
+    <button id="upgradeUnitWeapon" type="button" ${available?'':'disabled'}>${cost===undefined?'최대 강화':(available?'무기 강화':'보석 부족')+' · ◆ '+cost}</button>
+  </section>`;
+}
 function showMarket() {
   if(state.gameover) return;
   if(state.shopOffers.length===0) { state.shopOffers=marketOffers(); persist(); }
-  const picked=state.units.find(u=>u.id===selectedUnit);
   const recruitCost=4+Math.min(3,state.shopCount);
   const expansionCost=7+state.expansions*3;
   const choices=state.shopOffers.map(type=>`<button class="market-recruit" data-market="recruit" data-type="${type}" ${state.units.length>=storageLimit || state.gems<recruitCost?'disabled':''}><img alt="" referrerpolicy="no-referrer" src="${portraits[type]}"><span>${roster[type].name} · ◆ ${recruitCost}</span></button>`).join('');
-  const train=picked && picked.tier<4 ? `<button data-market="train" ${state.gems<trainingCost(picked)?'disabled':''}>${roster[picked.type].name} 훈련 · ◆ ${trainingCost(picked)}</button>` : '<p>카드에서 동료를 한 명 선택하면 보석으로 4성까지 훈련할 수 있습니다.</p>';
-  const weapons=ZundaExpedition.rookies.filter(hero=>ownsGearFamily(hero.family)).map(({family,gear})=>{
-    const rank=state.gear[family] ?? 0, cost=gearCost[rank];
-    return `<button data-market="gear" data-type="${family}" ${cost===undefined || state.gems<cost?'disabled':''}>${gear.name} +${rank} · ${cost===undefined?'최대 강화':'강화 ◆ '+cost}<small>${gear.detail}</small></button>`;
-  }).join('');
-  showModal(`<h2>원정 보급소</h2><p>보유 보석 ◆ ${state.gems} · 출전 ${deployedCount()} / ${capacity()} · 보유 ${state.units.length} / ${storageLimit}</p><div class="market-grid">${choices}<button data-market="reroll" ${state.gems<2?'disabled':''}>영입 목록 갱신 · ◆ 2</button><button data-market="expand" ${capacity()>=rosterLimit || state.gems<expansionCost?'disabled':''}>편성 두 자리 확장 · ◆ ${expansionCost}</button>${train}<button data-market="charge" ${state.gems<4 || state.spellCD===0?'disabled':''}>간식 폭풍 즉시 충전 · ◆ 4</button></div>${weapons ? `<h3>전용 무기</h3><div class="market-grid weapon-grid">${weapons}</div>` : ''}`);
+  showModal(`<h2>원정 보급소</h2><p>보유 보석 ◆ ${state.gems} · 출전 ${deployedCount()} / ${capacity()} · 보유 ${state.units.length} / ${storageLimit}</p><div class="market-grid">${choices}<button data-market="reroll" ${state.gems<2?'disabled':''}>영입 목록 갱신 · ◆ 2</button><button data-market="expand" ${capacity()>=rosterLimit || state.gems<expansionCost?'disabled':''}>편성 두 자리 확장 · ◆ ${expansionCost}</button></div>`);
 }
 function spend(action,type) {
   if(state.gameover || choosing()) return;
-  const picked=state.units.find(u=>u.id===selectedUnit);
   if(action==='recruit') {
     const cost=4+Math.min(3,state.shopCount);
     if(state.gems<cost || state.units.length>=storageLimit || !state.shopOffers.includes(type) || !recruitableTypes.has(type)) return;
@@ -1306,27 +1436,12 @@ function spend(action,type) {
     if(state.gems<cost || capacity()>=rosterLimit) return;
     state.gems-=cost;
     state.expansions++;
-  } else if(action==='train') {
-    if(!picked || picked.tier>=4 || state.gems<trainingCost(picked)) return;
-    state.gems-=trainingCost(picked);
-    picked.tier++;
-  } else if(action==='gear') {
-    if(!ZundaExpedition.rookies.some(hero=>hero.family===type) || !ownsGearFamily(type)) return;
-    const rank=state.gear[type] ?? 0, cost=gearCost[rank];
-    if(cost===undefined || state.gems<cost) return;
-    state.gems-=cost;
-    state.gear[type]=rank+1;
-  } else if(action==='charge') {
-    if(state.gems<4 || state.spellCD===0) return;
-    state.gems-=4;
-    state.spellCD=0;
-    closeModal();
   } else return;
   refresh();
   persist();
   if(saveConflict) return;
   if(action==='recruit') showRecruitResult(state.units.at(-1),true);
-  else if(action!=='charge') showMarket();
+  else showMarket();
 }
 const reconNotes={
   runner:'빠르게 이동합니다. 결빙 지대나 범위 공격을 준비하세요.',
@@ -1368,24 +1483,6 @@ if(expedition) {
   });
   $('autoDeploy').onclick=autoDeploy;
   $('reserveTab').onclick=()=>{reserveView=!reserveView;selectedUnit=null;refresh();};
-  $('bench').onclick=()=>{
-    const selected=state.units.find(unit=>unit.id===selectedUnit);
-    if(!selected || state.gameover) return;
-    if(selected.reserve) {
-      if(!confirm(roster[selected.type].name+'을(를) 대기열에서 내보낼까요?')) return;
-      state.units=state.units.filter(unit=>unit!==selected);
-      state.gems++;
-      toast('동료를 내보냈습니다 · 보석 +1');
-    } else {
-      selected.reserve=true;
-      selected.slot=undefined;
-      reserveView=true;
-      toast('대기열로 이동했습니다');
-    }
-    selectedUnit=null;
-    refresh();
-    persist();
-  };
   $('placement').addEventListener('click',event=>{
     const button=event.target.closest('[data-pad]');
     if(button) moveFormation(Number(button.dataset.pad));
@@ -1411,7 +1508,10 @@ if(expedition) {
     if(card) openUnitRecipes(Number(card.dataset.unit));
   });
   $('focus').onclick=()=>{state.targetPriority=({lead:'support',support:'boss',boss:'lead'})[state.targetPriority];state.bossFocus=state.targetPriority==='boss';syncFocus();persist();};
-  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 전술 지령은 웨이브마다 포격·결빙·방어막에 쓸 포인트 2개를 줍니다. 회복병이 섞이면 회복병 우선을 켜세요. 전장의 동료나 카드를 드래그해 배치 칸으로 옮기세요. 동료가 있는 칸에 놓으면 자리를 교체합니다. 동료를 누르면 가능한 조합·진화를 확인할 수 있습니다. 4웨이브마다 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
+  $('help').onclick=()=>{
+    showModal('<h2>원정 방법</h2><p>동료 카드나 전장 캐릭터를 눌러 별 훈련, 무기 강화, 같은 동료 별 합성과 조합·진화를 할 수 있습니다. 보급소에서는 동료를 골라 영입하거나 편성을 확장합니다. 전술 지령은 웨이브마다 포격·결빙·방어막에 쓸 포인트 2개를 줍니다. 회복병이 섞이면 회복병 우선을 켜세요. 전장의 동료나 카드를 드래그해 배치 칸으로 옮기세요. 동료가 있는 칸에 놓으면 자리를 교체합니다. 동료를 누르면 가능한 조합·진화를 확인할 수 있습니다. 4웨이브마다 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p><button id="openExpeditionCodex" type="button">원정대 도감</button>');
+    $('openExpeditionCodex').onclick=showCodex;
+  };
   syncFocus();
 }
 function enterGame() {
@@ -1431,7 +1531,7 @@ function showTitleScreen() {
   refresh();
   const dialog=$('modal');
   dialog.classList.add('title-screen');
-  showModal('<img class="title-art" src="assets/title/four-companions.webp" alt=""><h2>로사 원정대</h2><div class="title-actions"><button id="startExpedition">게임 시작하기</button><button id="releaseHistory">업데이트 내역</button></div>');
+  showModal('<img class="title-art" src="assets/title/four-companions.webp" alt=""><h2>로사 원정대</h2><p class="title-version">v'+release.version+'</p><div class="title-actions"><button id="startExpedition">게임 시작하기</button><button id="releaseHistory">업데이트 내역</button></div>');
   $('close').hidden=true;
   $('startExpedition').onclick=()=>{
     dialog.classList.remove('title-screen');
@@ -1442,24 +1542,28 @@ function showTitleScreen() {
   $('startExpedition').focus();
 }
 
-// Change the release ID and notes together when publishing a player-facing update.
+// Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  id:'2026-11-21-auto-formation',
-  title:'전투력 기준 자동 배치',
+  version:'1.8',
+  title:'동료 성장과 간결해진 전투 화면',
   notes:[
-    '자동 배치를 누르면 출전·대기 동료 중 전투력이 높은 순으로 출전 자리를 채웁니다.',
-    '별 등급을 반영한 초당 공격 피해를 비교합니다. 계속 출전하는 동료는 현재 자리를 유지합니다.'
+    '동료를 눌러 능력치를 비교하고, 별 훈련·같은 동료 별 합성·전용 무기 강화·조합을 한곳에서 할 수 있습니다.',
+    '처음 영입하거나 새로 출전하는 동료는 비어 있는 입구 위쪽 칸부터 배치합니다.',
+    '웨이브 보급 내역을 전장 아래에 표시하고, 주요 전투 버튼과 정찰을 찾기 쉽게 정리했습니다.',
+    '전투 메뉴의 간식 폭풍을 제거했습니다. 도감은 도움말에, 새 게임은 타이틀에 있습니다.',
+    '네 주인공은 기본형부터 5단계까지 진화하며, 모든 단계에서 전용 공격 자세가 나옵니다.'
   ]
 };
 const releaseHistory = [
   release,
-  {title:'전장 드래그 배치와 동료 진화 메뉴',notes:['전장 동료를 드래그해 배치하고, 탭하면 조합·진화가 열립니다. 일반 웨이브 보급은 자동으로 받습니다.']},
-  {title:'인간형과 몬스터 조합',notes:['같은 유형끼리 조합하도록 정리하고 새 인간형 동료를 추가했습니다. 스타팅 동료 공격 자세와 자동 소환 결과 표시도 추가됐습니다.']},
-  {title:'주인공 진화와 전용 무기',notes:['네 주인공의 인간형 중간 진화와 전용 무기, 전체 화면 타이틀, 영입·조합 미리보기가 추가됐습니다.']},
-  {title:'네 명의 시작 동료와 새 조합표',notes:['첫 동료 네 명의 고유 공격과 재료 보유 여부를 보여주는 조합표가 추가됐습니다. 타이틀에 업데이트 내역과 저장된 원정 이어하기를 추가했습니다.']},
-  {title:'타이틀 화면과 기본형 동료',notes:['타이틀에서 게임 시작하기를 눌러 원정을 시작합니다. 로사, 프패, 소설가, 빰의 기본형과 상위 조합 경로가 추가됐습니다.']},
-  {title:'상위 조합 동료와 검붉은 군단',notes:['상위 조합 동료 네 명의 공격 모션과 아군 용 네 마리의 일러스트를 추가했습니다. 인간형 적은 아군과 겹칠 때 반투명해집니다.']},
-  {title:'전투 음악과 보스 경고',notes:['전투 음악 3곡과 보스 등장 경고음을 추가하고 2~19웨이브 적 체력을 조정했습니다.']}
+  {version:'1.7',title:'전투력 기준 자동 배치',notes:['출전·대기 동료 중 전투력이 높은 순으로 배치합니다. 계속 출전하는 동료는 현재 자리를 유지합니다.']},
+  {version:'1.6',title:'전장 드래그 배치와 동료 진화 메뉴',notes:['전장 동료를 드래그해 배치하고, 탭하면 조합·진화가 열립니다. 일반 웨이브 보급은 자동으로 받습니다.']},
+  {version:'1.5',title:'인간형과 몬스터 조합',notes:['같은 유형끼리 조합하도록 정리하고 새 인간형 동료를 추가했습니다. 스타팅 동료 공격 자세와 자동 소환 결과 표시도 추가됐습니다.']},
+  {version:'1.4',title:'주인공 진화와 전용 무기',notes:['네 주인공의 인간형 중간 진화와 전용 무기, 전체 화면 타이틀, 영입·조합 미리보기가 추가됐습니다.']},
+  {version:'1.3',title:'네 명의 시작 동료와 새 조합표',notes:['첫 동료 네 명의 고유 공격과 재료 보유 여부를 보여주는 조합표가 추가됐습니다. 타이틀에 업데이트 내역과 저장된 원정 이어하기를 추가했습니다.']},
+  {version:'1.2',title:'타이틀 화면과 기본형 동료',notes:['타이틀에서 게임 시작하기를 눌러 원정을 시작합니다. 로사, 프패, 소설가, 빰의 기본형과 상위 조합 경로가 추가됐습니다.']},
+  {version:'1.1',title:'상위 조합 동료와 검붉은 군단',notes:['상위 조합 동료 네 명의 공격 모션과 아군 용 네 마리의 일러스트를 추가했습니다. 인간형 적은 아군과 겹칠 때 반투명해집니다.']},
+  {version:'1.0',title:'전투 음악과 보스 경고',notes:['전투 음악 3곡과 보스 등장 경고음을 추가하고 2~19웨이브 적 체력을 조정했습니다.']}
 ];
 function showTitlePage(html,back,inDialogButton='') {
   const dialog=$('modal');
@@ -1472,7 +1576,7 @@ function showTitlePage(html,back,inDialogButton='') {
 }
 function showReleaseHistory() {
   showTitlePage('<h2>업데이트 내역</h2>'+
-    releaseHistory.map(entry=>'<section><h3>'+entry.title+'</h3><ul>'+
+    releaseHistory.map(entry=>'<section class="release-entry"><h3><span class="release-version">v'+entry.version+'</span><span>'+entry.title+'</span></h3><ul>'+
       entry.notes.map(note=>'<li>'+note+'</li>').join('')+'</ul></section>').join('')+
     '<button id="closeReleaseHistory">타이틀로 돌아가기</button>',showTitleScreen,'closeReleaseHistory');
 }
@@ -1502,15 +1606,15 @@ const releaseKey='rosa-expedition-seen-release';
 let seenRelease;
 try { seenRelease=localStorage.getItem(releaseKey); } catch {}
 
-if(expedition && seenRelease!==release.id) {
+if(expedition && seenRelease!==release.version) {
   refresh();
   $('modal').classList.add('release-intro');
-  showModal('<h2>로사 원정대 업데이트</h2><p><strong>'+release.title+'</strong></p><ul>'+
+  showModal('<h2>로사 원정대 업데이트</h2><p><span class="release-version">v'+release.version+'</span> <strong>'+release.title+'</strong></p><ul>'+
     release.notes.map(note=>'<li>'+note+'</li>').join('')+
     '</ul><button id="enterAfterUpdate">확인</button>');
   $('close').hidden=true;
   const finishRelease=()=>{
-    try { localStorage.setItem(releaseKey,release.id); } catch {}
+    try { localStorage.setItem(releaseKey,release.version); } catch {}
     $('modal').removeEventListener('cancel',cancelRelease);
     $('modal').classList.remove('release-intro');
     $('modal').close();

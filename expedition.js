@@ -190,8 +190,8 @@ const ZundaExpedition = (() => {
     {type:126,first:29,second:106,name:'뇌전궁 소설가',effect:'chain',color:'#91f5ca',dmg:124,rate:1.08,range:191,slug:'tessa'},
     {type:127,first:30,second:104,name:'월식검 빰',effect:'pierce',color:'#dfb4ff',dmg:146,rate:.98,range:185,slug:'kaela'}
   ];
-  const finalForms=heroines.map(hero=>({
-    ...hero,...specialties[hero.slug],hue:0,silhouette:'hero',projectile:410,
+  const advancedForms=heroines.map(hero=>({
+    ...hero,...specialties[hero.slug],stage:3,hue:0,silhouette:'hero',projectile:410,
     portrait:'assets/heroines/'+hero.slug+'.webp',
     attack:'assets/heroines/'+hero.slug+'-attack.webp'
   }));
@@ -202,7 +202,7 @@ const ZundaExpedition = (() => {
     {type:130,name:'정찰궁 소설가',effect:'chain',dmg:19,rate:1.06,range:162,slug:'tessa'},
     {type:131,name:'수련검 빰',effect:'pierce',dmg:28,rate:.99,range:129,slug:'kaela'}
   ].map((rookie,i)=>({
-    ...rookie,...specialties[rookie.slug],color:heroines[i].color,silhouette:'hero',
+    ...rookie,...specialties[rookie.slug],stage:1,color:heroines[i].color,silhouette:'hero',
     portrait:'assets/heroines/'+rookie.slug+'-starter.webp',
     attack:'assets/heroines/'+rookie.slug+'-starter-attack.webp'
   }));
@@ -213,12 +213,30 @@ const ZundaExpedition = (() => {
     {type:135,first:131,second:30,name:'초승검 빰',dmg:74,rate:.99,range:151}
   ].map(form=>{
     const base=rookies.find(rookie=>rookie.type===form.first);
-    return {...base,...form,hue:0,projectile:390,attack:null,portrait:'assets/heroines/'+base.slug+'-vanguard.webp'};
+    return {...base,...form,stage:2,hue:0,projectile:390,portrait:'assets/heroines/'+base.slug+'-vanguard.webp',
+      attack:'assets/heroines/'+base.slug+'-vanguard-attack.webp'};
   });
-  forms.push(...finalForms,...middleForms,...humanChampions);
+  const inheritStage = (form,previous,stage,art) => ({
+    ...previous,...form,stage,portrait:'assets/heroines/'+previous.slug+'-'+art+'.webp',
+    attack:'assets/heroines/'+previous.slug+'-'+art+'-attack.webp'
+  });
+  const ascendantForms = [
+    {type:144,first:124,second:136,name:'여명왕검 로사',dmg:166,rate:1.12,range:188},
+    {type:145,first:125,second:137,name:'빙관술사 프패',dmg:147,rate:1.28,range:193},
+    {type:146,first:126,second:138,name:'천뢰궁 소설가',dmg:158,rate:1.15,range:201},
+    {type:147,first:127,second:139,name:'적월검 빰',dmg:177,rate:1.03,range:195}
+  ].map(form=>inheritStage(form,advancedForms.find(previous=>previous.type===form.first),4,'ascendant'));
+  const mythicForms = [
+    {type:148,first:144,second:140,name:'태양의 맹세 로사',dmg:202,rate:1.18,range:200},
+    {type:149,first:145,second:141,name:'영원의 서리 프패',dmg:182,rate:1.33,range:206},
+    {type:150,first:146,second:142,name:'천공의 번개 소설가',dmg:195,rate:1.22,range:214},
+    {type:151,first:147,second:143,name:'만월의 검 빰',dmg:216,rate:1.08,range:207}
+  ].map(form=>inheritStage(form,ascendantForms.find(previous=>previous.type===form.first),5,'mythic'));
+  for(const form of [...ascendantForms,...mythicForms]) humanTypes.add(form.type);
+  forms.push(...advancedForms,...middleForms,...humanChampions,...ascendantForms,...mythicForms);
   const fusionRecipes = [
     ...forms.filter(form=>!retiredResults.has(form.name)),
-    ...finalForms.flatMap(form=>[
+    ...advancedForms.flatMap(form=>[
       {...form,first:form.family},
       {...form,first:middleForms.find(middle=>middle.family===form.family).type}
     ])
