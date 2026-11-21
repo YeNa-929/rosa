@@ -298,6 +298,7 @@ function showChoices() {
   for(const button of choices) button.onclick=()=>{
     if(state.phase!=='draft') return;
     recruit(Number(button.dataset.choice));
+    battleStarted=true;
     state.phase='wave';
     state.spawnTimer=.9;
     $('modal').classList.remove('starter-screen');
