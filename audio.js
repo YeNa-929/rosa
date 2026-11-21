@@ -3,8 +3,6 @@
 
 const CourtAudio = (() => {
   const preference = 'wonderland-audio-enabled';
-  const beat = 60/148;
-  const step = beat/2;
   const melody = [
     [76,0,79,81,83,81,79,76], [74,76,79,0,81,79,76,74],
     [72,0,76,79,84,83,79,76], [74,0,78,81,86,81,78,74],
@@ -13,6 +11,19 @@ const CourtAudio = (() => {
   ];
   const roots = [40,43,36,38,40,43,36,38];
   const chords = [[64,67,71],[62,67,71],[64,67,72],[62,66,69]];
+  const tracks = {
+    opening:{bpm:148,melody,roots,chords,lead:'triangle'},
+    rift:{bpm:160,lead:'square',
+      melody:[[81,0,84,81,79,81,76,79],[77,81,84,88,84,81,79,77],[79,82,86,82,79,77,74,77],[76,80,83,86,83,80,76,0]],
+      roots:[45,41,43,40],chords:[[69,72,76],[65,69,72],[67,70,74],[64,68,71]]},
+    deep:{bpm:136,lead:'triangle',
+      melody:[[74,81,77,84,81,86,84,81],[70,74,77,81,85,81,77,74],[72,79,76,83,79,84,83,79],[73,76,79,85,88,85,79,76]],
+      roots:[38,34,36,33],chords:[[62,65,69],[58,62,65],[60,64,67],[61,64,67]]},
+    boss:{bpm:178,lead:'sawtooth',
+      melody:[[62,62,74,0,65,62,68,67],[61,61,73,0,64,61,67,65],[62,65,74,77,74,68,67,65],[60,63,72,75,73,67,64,61]],
+      roots:[38,37,38,36],chords:[[62,65,68],[61,64,67],[62,65,69],[60,63,67]]}
+  };
+  let activeTrack='opening', warning;
   let enabled = true;
   let context, music, next, position = 0, failed = false;
   try { enabled = localStorage.getItem(preference) !== 'off'; } catch {}
@@ -40,11 +51,19 @@ const CourtAudio = (() => {
     music = undefined;
   }
 
-  function sync(playing) {
+  function sync(playing,track='opening') {
+    if(track!==activeTrack) {
+      stop();
+      activeTrack=track;
+      position=0;
+    }
     if (!enabled || !playing || context?.state !== 'running') {
       stop();
+      if(!playing || !enabled) silenceWarning();
       return;
     }
+    const song=tracks[activeTrack];
+    const step=30/song.bpm;
     const now = context.currentTime;
     if (!music) {
       music = context.createGain();
@@ -57,16 +76,16 @@ const CourtAudio = (() => {
     while (next<now+.11) {
       const bar = Math.floor(position/8);
       const eighth = position%8;
-      const note = melody[bar][eighth];
-      if (note) voice(music,note,next,step*.95,.055,'triangle');
+      const note = song.melody[bar][eighth];
+      if (note) voice(music,note,next,step*.95,.055,song.lead);
       if (eighth%2===0) {
-        voice(music,roots[bar]+(eighth===4 ? 7 : 0),next,step*1.65,.075,'triangle');
+        voice(music,song.roots[bar]+(eighth===4 ? 7 : 0),next,step*1.65,.075,'triangle');
         voice(music,41,next,.13,.12,'sine',40);
       } else {
-        for (const harmony of chords[bar%4]) voice(music,harmony,next,.13,.014,'triangle');
+        for (const harmony of song.chords[bar%4]) voice(music,harmony,next,.13,.014,'triangle');
       }
       if (eighth===2 || eighth===6) voice(music,79,next,.075,.026,'square',150);
-      position=(position+1)%64;
+      position=(position+1)%(song.melody.length*8);
       next+=step;
     }
   }
@@ -85,7 +104,7 @@ const CourtAudio = (() => {
     enabled = !enabled;
     try { localStorage.setItem(preference,enabled ? 'on' : 'off'); } catch {}
     if (enabled) unlock();
-    else stop();
+    else { stop(); silenceWarning(); }
   }
 
   function effect(frequency = 600, duration = .07) {
@@ -94,5 +113,25 @@ const CourtAudio = (() => {
     voice(context.destination,note,context.currentTime,duration,.036,'sine');
   }
 
-  return { get enabled() { return enabled; }, unlock, toggle, sync, effect };
+  function silenceWarning() {
+    if(!warning) return;
+    warning.disconnect();
+    warning=undefined;
+  }
+
+  function bossWarning() {
+    if(!enabled || context?.state!=='running' || document.hidden) return;
+    silenceWarning();
+    const bus=context.createGain();
+    bus.connect(context.destination);
+    warning=bus;
+    const start=context.currentTime+.015;
+    [0,.29,.58].forEach((delay,i)=>{
+      voice(bus,i===2?50:43,start+delay,.22,.13,'triangle');
+      voice(bus,i===2?65:54,start+delay,.18,.045,'sawtooth');
+    });
+    setTimeout(()=>{if(warning===bus)silenceWarning();},950);
+  }
+
+  return { get enabled() { return enabled; }, unlock, toggle, sync, effect, bossWarning };
 })();

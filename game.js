@@ -54,6 +54,7 @@ let selectedUnit = null;
 let deploymentPads=[];
 let command=null, slowField=null;
 let breaking=null, fieldImpact=0;
+let bossWarningWave=0;
 const breakWindow=3.6;
 const keepPhase = phase => expedition && ['draft','reward'].includes(phase) ? phase : 'wave';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -329,7 +330,11 @@ function spawn() {
   const base=expedition ? (boss?760:70) : (boss?550:65);
   const growth=expedition ? Math.pow(1.262,Math.min(15,state.wave-1))*Math.pow(1.145,Math.max(0,state.wave-16)) : Math.pow(1.24,state.wave-1);
   const rules=expedition ? sectorRules[state.contract] : null;
-  const hp=base*growth*(state.elite?1.4:1)*(model?.hp ?? 1);
+  // Leave 20+ unchanged; taper the early multiplier so wave 20 still grows over wave 19.
+  const earlyPressure=expedition && state.wave<20
+    ? 1+Math.min((state.wave-1)*.03,.18,.09+(19-state.wave)*.025)
+    : 1;
+  const hp=base*growth*(state.elite?1.4:1)*(model?.hp ?? 1)*earlyPressure;
   const warded=expedition && state.spawned===waveTotal()-1 && (boss || state.wave%3===2);
   const m={id:uid++,t:0,hp,max:hp,boss,kind,model,armor:(model?.armor??0)+(rules?.armor??0),slow:0,slowFactor:1,
     warded,wardFloor:.48,breakTime:0,rearm:.29,step:0,lastStep:0,facing:1,healTimer:1.1,
@@ -399,7 +404,7 @@ function refresh() {
 }
 
 function end(){state.gameover=true;state.paused=true;refresh();persist();$('game').classList.toggle('over',!state.cleared);showModal(`<h2>${state.cleared?'원정 성공!':expedition?'원정 종료':'원더랜드 함락'}</h2><p>${state.wave} 웨이브까지 방어했습니다.</p><p>처치한 적: ${state.kills} · 강화 레벨: ${state.upgrade}</p><button id="retry" class="danger">다시 도전</button>`);$('retry').onclick=restart}
-function restart(){if(saveConflict){location.reload();return;}if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
+function restart(){if(saveConflict){location.reload();return;}if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;bossWarningWave=0;uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
 function showModal(html) {
   $('close').hidden = false;
   $('modalBody').innerHTML = html;
@@ -629,7 +634,14 @@ spellFlash = Math.max(0, spellFlash-dt);
 fieldImpact=Math.max(0,fieldImpact-dt/state.speed);
 if(slowField && (slowField.time-=dt)<=0) slowField=null;
 state.spellCD=Math.max(0,state.spellCD-dt);autosummonTimer-=dt;if(state.auto&&autosummonTimer<=0){summon(true);autosummonTimer=.6}
-if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&state.spawnTimer<=0){spawn();state.spawnTimer=expedition && state.wave>=5 && state.spawned%5!==0 ? Math.max(.21,.64-state.wave*.014) : Math.max(.26,.78-state.wave*.013)}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
+if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&state.spawnTimer<=0){
+  const waitingForBoss=expedition && state.wave%bossInterval===0 && state.spawned===waveTotal()-1;
+  if(waitingForBoss && bossWarningWave!==state.wave) {
+    bossWarningWave=state.wave;
+    state.spawnTimer=1.25*state.speed;
+    announce('경고 · '+ZundaExpedition.opponents[ZundaExpedition.kind(state.wave,state.spawned,true)].name+' 접근 중');
+    CourtAudio.bossWarning();
+  } else { spawn();state.spawnTimer=expedition && state.wave>=5 && state.spawned%5!==0 ? Math.max(.21,.64-state.wave*.014) : Math.max(.26,.78-state.wave*.013)}}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
 else{state.breakTimer-=dt;if(state.breakTimer<=0){state.wave++;state.spawned=0;state.spawnTimer=.5;state.phase='wave';announce('🌙 WAVE '+state.wave);persist()}}
 for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}moveEnemy(m,dt);if(m.t>=1){m.hp=-1;const loss=m.boss?(expedition ? state.life : 5):m.warded?8:1;if(expedition && !m.boss && state.shield>0){state.shield--;announce('방어막이 돌파를 막았습니다');}else state.life-=loss;if(state.life<=0){state.life=0;end();return}}}
 for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)continue;const t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(Math.hypot(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=t.dmg*Math.pow(expedition?1.98:2.15,u.tier-1)*(1+(expedition? .25*Math.min(8,state.upgrade)+.12*Math.max(0,state.upgrade-8) : state.upgrade*.25)+state.power)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/(t.rate*(1+(u.tier-1)*.1+state.tempo))}}
@@ -837,7 +849,10 @@ function frame(now) {
   last = now;
   update(dt*state.speed);
   draw();
-  CourtAudio.sync(!state.paused && !state.gameover && !$('modal').open && !document.hidden);
+  const track=expedition && (mobs.some(enemy=>enemy.boss && enemy.hp>0)
+    || (bossWarningWave===state.wave && state.spawned===waveTotal()-1)) ? 'boss'
+    : expedition && state.wave>16 ? 'deep' : expedition && state.wave>4 ? 'rift' : 'opening';
+  CourtAudio.sync(!state.paused && !state.gameover && !$('modal').open && !document.hidden,track);
   if (now >= nextRefresh) {
     refresh();
     nextRefresh = now + 125;
