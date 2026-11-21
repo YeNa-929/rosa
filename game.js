@@ -58,9 +58,43 @@ const breakWindow=3.6;
 const keepPhase = phase => expedition && ['draft','reward'].includes(phase) ? phase : 'wave';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let terrain, path, lengths, pathLength, rosterKey, rosterOver, nextRefresh = 0, spellFlash = 0;
-const SAVE=expedition ? 'zunda-expedition-v1' : 'wonderland-defense-v2';let state, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0;
-const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false,targetPriority:'lead',tactics:2,shield:0,expansions:0,shopOffers:[],shopCount:0});
-try{const s=JSON.parse(localStorage.getItem(SAVE)||'null');state=s&&Number.isFinite(s.wave)&&Array.isArray(s.units)?{...fresh(),...s,spawned:0,phase:keepPhase(s.phase),spawnTimer:.8,breakTimer:0,paused:s.gameover===true||s.life===0,gameover:s.gameover===true||s.life===0,units:s.units.slice(0,storageLimit).filter(u=>roster[u.type]&&u.tier>=1&&u.tier<=4).map(u=>({type:u.type,tier:u.tier,slot:u.slot,reserve:expedition&&u.reserve===true,id:uid++,cool:Math.random()}))}:fresh()}catch{state=fresh()}
+const SAVE=expedition ? 'zunda-expedition-v1' : 'wonderland-defense-v2';let state, lastStored=null, saveConflict=false, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0;
+const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false,targetPriority:'lead',tactics:2,shield:0,expansions:0,shopOffers:[],shopCount:0,contract:'none'});
+function restore() {
+  const defaults=fresh();
+  try {
+    lastStored=localStorage.getItem(SAVE);
+    const saved=JSON.parse(lastStored||'null');
+    if(!saved || !Number.isFinite(saved.wave) || !Array.isArray(saved.units)) return defaults;
+    const {encounter,...progress}=saved;
+    const result={...defaults,...progress,spawned:0,phase:keepPhase(saved.phase),spawnTimer:.8,breakTimer:0,
+      paused:saved.gameover===true||saved.life===0,gameover:saved.gameover===true||saved.life===0};
+    result.units=saved.units.slice(0,storageLimit).filter(u=>roster[u.type]&&u.tier>=1&&u.tier<=4).map(u=>({
+      type:u.type,tier:u.tier,slot:u.slot,reserve:expedition&&u.reserve===true,id:uid++,
+      cool:Number.isFinite(u.cool)?Math.max(0,u.cool):Math.random()
+    }));
+    if(!expedition || !encounter || result.phase!=='wave' || result.gameover ||
+       !Array.isArray(encounter.enemies) || !Array.isArray(encounter.shots)) return result;
+    result.spawned=encounter.spawned;
+    result.spawnTimer=encounter.spawnTimer;
+    mobs=encounter.enemies.flatMap(enemy=>{
+      const model=ZundaExpedition.opponents[enemy.kind];
+      if(!model || !Number.isFinite(enemy.t) || enemy.hp<=0) return [];
+      return [{...enemy,model,x:0,y:0,flash:0,healUntil:0}];
+    });
+    const targets=new Map(mobs.map(enemy=>[enemy.id,enemy]));
+    bullets=encounter.shots.flatMap(shot=>targets.has(shot.targetId) && roster[shot.type]
+      ? [{...shot,target:targets.get(shot.targetId),x:shot.x*W,y:shot.y*H}] : []);
+    breaking=mobs.find(enemy=>enemy.warded&&enemy.breakTime>0) ?? null;
+    slowField=encounter.zone ? {...encounter.zone,x:encounter.zone.x*W,y:encounter.zone.y*H} : null;
+    uid=Math.max(uid,1+Math.max(0,...mobs.map(enemy=>enemy.id)));
+    return result;
+  } catch {
+    mobs=[];bullets=[];breaking=null;slowField=null;
+    return defaults;
+  }
+}
+state=restore();
 if(expedition && state.cleared && state.wave===16) {
   state.wave=17;
   state.gameover=false;
@@ -71,7 +105,34 @@ if(expedition && state.bossFocus) state.targetPriority='boss';
 const capacity=()=>expedition ? Math.min(rosterLimit,8+state.expansions*2) : rosterLimit;
 const deployedCount=()=>state.units.filter(u=>!u.reserve).length;
 if(expedition && deployedCount()>capacity()) state.expansions=Math.min(2,Math.ceil((deployedCount()-8)/2));
-function persist(){try{localStorage.setItem(SAVE,JSON.stringify({...state,units:state.units.map(({type,tier,slot,reserve})=>({type,tier,slot,reserve})),spawned:0,phase:keepPhase(state.phase),spawnTimer:.8,breakTimer:0,paused:false}))}catch{}}
+function persist() {
+  try {
+    if(expedition && localStorage.getItem(SAVE)!==lastStored) {
+      if(!saveConflict) {
+        saveConflict=true;
+        state.paused=true;
+        $('modal').close();
+        $('saveNotice').hidden=false;
+        for(const panel of $('game').children) if(panel!==$('saveNotice')) panel.inert=true;
+        $('reloadSave').focus();
+      }
+      return;
+    }
+    const encounter=expedition && state.phase==='wave' && !state.gameover ? {
+      spawned:state.spawned,spawnTimer:state.spawnTimer,
+      enemies:mobs.filter(enemy=>enemy.hp>0).map(({model,x,y,flash,healUntil,...enemy})=>enemy),
+      shots:bullets.filter(shot=>!shot.dead && shot.target.hp>0).map(({target,x,y,...shot})=>({
+        ...shot,targetId:target.id,x:x/W,y:y/H
+      })),
+      zone:slowField ? {...slowField,x:slowField.x/W,y:slowField.y/H} : null
+    } : undefined;
+    const serialized=JSON.stringify({...state,encounter,
+      units:state.units.map(({type,tier,slot,reserve,cool})=>({type,tier,slot,reserve,cool})),
+      spawned:0,phase:keepPhase(state.phase),spawnTimer:.8,breakTimer:0,paused:false});
+    localStorage.setItem(SAVE,serialized);
+    lastStored=serialized;
+  } catch {}
+}
 const beep = CourtAudio.effect;
 function announce(t){$('announcement').textContent=t;$('announcement').style.opacity=1;annTimer=1.7;beep(800)}
 function toast(t){$('toast').textContent=t;$('toast').style.opacity=1;toastTimer=1.9}
@@ -187,23 +248,27 @@ function recruit(type) {
 const choosing = () => state.phase==='draft'||state.phase==='reward';
 function showChoices() {
   const draft = state.phase==='draft';
-  const options = draft ? cast.map(character=>character.type) : state.offers;
+  const contract=sectorOffer();
+  const options = draft ? cast.map(character=>character.type) : contract ? ['standard','rush','armor'] : state.offers;
   const buttons = options.map(i => {
-    const title = draft ? roster[i].name : supplies[i][0];
-    const detail = draft ? roster[i].skill : supplies[i][1];
+    const title = draft ? roster[i].name : contract ? sectorRules[i].title : supplies[i][0];
+    const detail = draft ? roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
     const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
     return `<button data-choice="${i}">${art}<b>${title}</b><small>${detail}</small></button>`;
   });
-  showModal(`<h2>${draft?'첫 동료를 선택하세요':'원정 보급품을 고르세요'}</h2><p>${draft?'동료를 영입하고 같은 동료·등급 두 명을 합쳐 32웨이브까지 돌파하세요.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
+  showModal(`<h2>${draft?'첫 동료를 선택하세요':contract?'다음 구역의 작전을 고르세요':'원정 보급품을 고르세요'}</h2><p>${draft?'동료를 영입하고 같은 동료·등급 두 명을 합쳐 32웨이브까지 돌파하세요.':contract?'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
   $('close').hidden=true;
   const choices=$('modalBody').querySelectorAll('[data-choice]');
   for(const button of choices) button.onclick=()=>{
     if(!choosing()) return;
-    const i=Number(button.dataset.choice);
+    const i=contract ? button.dataset.choice : Number(button.dataset.choice);
     if(draft) recruit(i);
     else {
       const previous=ZundaExpedition.region(state.wave);
-      supplies[i][2]();
+      if(contract) {
+        state.contract=i;
+        if(i==='standard') state.life=Math.min(25,state.life+4);
+      } else supplies[i][2]();
       state.wave++;
       state.shopCount=0;
       state.tactics=2;
@@ -223,9 +288,17 @@ function showChoices() {
   };
   choices[0]?.focus();
 }
+const sectorRules={
+  none:{speed:1,armor:0,gems:0,gold:0},
+  standard:{title:'안정 전개',detail:'생명 4 회복 · 매 웨이브 보석 +1',speed:1,armor:0,gems:1,gold:0},
+  rush:{title:'가속 전선',detail:'적 이동 +18% · 매 웨이브 보석 +4',speed:1.18,armor:0,gems:4,gold:0},
+  armor:{title:'철갑 전선',detail:'적 장갑 +12%p · 매 웨이브 골드 +55',speed:1,armor:.12,gems:0,gold:55}
+};
+const sectorOffer=()=>expedition && state.phase==='reward' && state.wave%4===0;
 function clearWave() {
-  state.gems+=5+(state.elite?7:0);
-  state.gold+=15+state.wave*4;
+  const bonus=expedition ? sectorRules[state.contract] : null;
+  state.gems+=5+(state.elite?7:0)+(bonus?.gems??0);
+  state.gold+=15+state.wave*4+(bonus?.gold??0);
   state.elite=false;
   if(!expedition) {
     state.phase='break';
@@ -255,25 +328,26 @@ function spawn() {
   const model=kind ? ZundaExpedition.opponents[kind] : null;
   const base=expedition ? (boss?760:70) : (boss?550:65);
   const growth=expedition ? Math.pow(1.262,Math.min(15,state.wave-1))*Math.pow(1.145,Math.max(0,state.wave-16)) : Math.pow(1.24,state.wave-1);
+  const rules=expedition ? sectorRules[state.contract] : null;
   const hp=base*growth*(state.elite?1.4:1)*(model?.hp ?? 1);
   const warded=expedition && state.spawned===waveTotal()-1 && (boss || state.wave%3===2);
-  const m={id:uid++,t:0,hp,max:hp,boss,kind,model,armor:model?.armor ?? 0,slow:0,slowFactor:1,
+  const m={id:uid++,t:0,hp,max:hp,boss,kind,model,armor:(model?.armor??0)+(rules?.armor??0),slow:0,slowFactor:1,
     warded,wardFloor:.48,breakTime:0,rearm:.29,step:0,lastStep:0,facing:1,healTimer:1.1,
-    speed:(expedition ? (boss?.026:.047) : (boss?.032:.061))*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1),x:0,y:0};
+    speed:(expedition ? (boss?.026:.047) : (boss?.032:.061))*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1)*(rules?.speed??1),x:0,y:0};
   [m.x,m.y]=at(0);
   mobs.push(m);
   state.spawned++;
   if(boss) announce((model?.name ?? '하트 군단의 보스')+' 등장!');
 }
-function waveTotal(){return expedition ? Math.min(14+state.wave*2+(state.wave>=5&&state.wave%4===1?5:0),78) : Math.min(12+state.wave*2,65)}
+function waveTotal(wave=state.wave){return expedition ? Math.min(14+wave*2+(wave>=5&&wave%4===1?5:0),78) : Math.min(12+wave*2,65)}
 function drawRecruit(roll) {
   const owned=[...new Set(state.units.map(u=>u.type).filter(type=>castByType.has(type)))];
   if(owned.length && roll<.36) return owned[Math.floor(Math.random()*owned.length)];
   return cast[Math.floor(Math.random()*cast.length)].type;
 }
-function summon(silent=false){if(state.gems<2){if(!silent)toast('💎 보석이 부족합니다');return false}if(state.units.length>=storageLimit){if(!silent)toast('편성이 가득 찼습니다');return false}state.gems-=2;const r=Math.random(),type=expedition ? drawRecruit(r) : r<.26?0:r<.48?1:r<.69?2:r<.85?3:r<.96?4:5;recruit(type);if(!silent){toast(roster[type].name+(state.units.at(-1).reserve?' 대기 편성!':' 영입!'));beep(720)}refresh();persist();return true}
+function summon(silent=false){if(state.gems<2){if(!silent)toast('💎 보석이 부족합니다');return false}if(state.units.length>=storageLimit){if(!silent)toast('편성이 가득 찼습니다');return false}state.gems-=2;const r=Math.random(),type=expedition ? drawRecruit(r) : r<.26?0:r<.48?1:r<.69?2:r<.85?3:r<.96?4:5;recruit(type);if(!silent){toast(roster[type].name+(state.units.at(-1).reserve?' 대기 편성!':' 영입!'));beep(720)}refresh();if(!silent)persist();return true}
 function merge(){const groups={};state.units.forEach(u=>{const key=u.type+'-'+u.tier;(groups[key]??=[]).push(u)});const found=Object.values(groups).filter(a=>a.length>=mergeCount&&a[0].tier<4).sort((a,b)=>b[0].tier-a[0].tier)[0];if(!found){toast('동일 캐릭터와 등급이 필요합니다');return}const materials=[...found].sort((a,b)=>Number(a.reserve)-Number(b.reserve)).slice(0,mergeCount);const ids=new Set(materials.map(u=>u.id)),u=materials[0];state.units=state.units.filter(x=>!ids.has(x.id));let type=u.type;if(!expedition&&u.tier===3&&type<5)type++;state.units.push({id:uid++,type,tier:u.tier+1,slot:u.slot,reserve:u.reserve,cool:0,born:visualTime});announce('✨ '+roster[type].name+' '+(u.tier+1)+'성 합성 성공!');refresh();persist()}
-function upgrade(){const cost=30+state.upgrade*25;if(state.gold<cost){toast('🪙 골드가 부족합니다');return}state.gold-=cost;state.upgrade++;announce('⚔ 공격력 '+(state.upgrade*25)+'% 강화!');refresh();persist()}
+function upgrade(){const cost=30+state.upgrade*25;if(state.gold<cost){toast('🪙 골드가 부족합니다');return}state.gold-=cost;state.upgrade++;announce('⚔ 공격력 +'+(expedition&&state.upgrade>8?12:25)+'%p');refresh();persist()}
 function spell(){if(state.spellCD>0){toast('마법 재사용 대기 중');return}state.spellCD=24;spellFlash=.75;mobs.forEach(m=>{if(m.hp<=0)return;damageMob(m,90+state.wave*11,'#9bd7ff',.65,25);m.slow=4;m.slowFactor=.35});announce('🌀 원더랜드 시간 정지!');beep(400,.3);refresh()}
 function refresh() {
   const s = state;
@@ -325,7 +399,7 @@ function refresh() {
 }
 
 function end(){state.gameover=true;state.paused=true;refresh();persist();$('game').classList.toggle('over',!state.cleared);showModal(`<h2>${state.cleared?'원정 성공!':expedition?'원정 종료':'원더랜드 함락'}</h2><p>${state.wave} 웨이브까지 방어했습니다.</p><p>처치한 적: ${state.kills} · 강화 레벨: ${state.upgrade}</p><button id="retry" class="danger">다시 도전</button>`);$('retry').onclick=restart}
-function restart(){if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
+function restart(){if(saveConflict){location.reload();return;}if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
 function showModal(html) {
   $('close').hidden = false;
   $('modalBody').innerHTML = html;
@@ -336,7 +410,7 @@ function closeModal() { if(!choosing()) $('modal').close(); }
 if(expedition) $('modal').addEventListener('cancel',event=>{if(choosing())event.preventDefault();});
 $('close').onclick = closeModal;
 $('summon').onclick=()=>summon();$('merge').onclick=merge;$('upgrade').onclick=upgrade;$('spell').onclick=spell;
-$('speed').onclick=()=>{state.speed=state.speed===1?2:state.speed===2?3:1;refresh()};$('pause').onclick=()=>{state.paused=!state.paused;refresh()};$('auto').onclick=()=>{state.auto=!state.auto;refresh();persist()};$('reset').onclick=restart;
+$('speed').onclick=()=>{state.speed=state.speed===1?2:state.speed===2?3:1;refresh()};$('pause').onclick=()=>{if(saveConflict){location.reload();return;}state.paused=!state.paused;refresh()};$('auto').onclick=()=>{state.auto=!state.auto;refresh();persist()};$('reset').onclick=restart;
 function syncSoundButton() {
   $('sound').textContent = CourtAudio.enabled ? '♫' : '♪';
   $('sound').setAttribute('aria-pressed',CourtAudio.enabled);
@@ -350,6 +424,9 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) CourtAudio.sync(false);
 });
 addEventListener('pagehide',persist);
+if(expedition) addEventListener('storage',event=>{
+  if(event.key===SAVE && event.newValue!==lastStored) persist();
+});
 $('help').onclick=()=>showModal('<h2>♠ 게임 방법</h2><p>수호자를 무작위로 소환해 미로를 지나가는 적을 막으세요.</p><ul><li>🎲 소환: 보석 2개 소모</li><li>✨ 합성: 동일 캐릭터와 등급 3개 → 상위 등급 1개</li><li>⚔ 강화: 모든 수호자 공격력 상승</li><li>🌀 마법: 모든 적 피해 + 4초 둔화</li><li>👑 5웨이브마다 보스 등장</li><li>❤️ 적이 출구에 도달하면 생명 감소</li></ul><p>진행 상황은 이 브라우저에만 자동 저장됩니다. 게임 버튼을 처음 누르면 음악을 재생하며, 상단 음표 버튼으로 끌 수 있습니다.</p>');
 $('codex').onclick=()=>showModal((expedition?'<h2>원정대 도감</h2>':'<h2>📖 원더랜드 도감</h2>')+roster.map((t,i)=>`<div class="entry"><img referrerpolicy="no-referrer" src="${portraits[i]}" alt=""><div><b>${t.name}</b><small>공격 ${t.dmg} · 사거리 ${t.range} · ${t.skill}</small></div></div>`).join('')+(expedition?'':'<p>루이스 캐럴의 1865년 소설에서 모티프를 얻은 독립 제작 게임입니다.</p>'));
 function damageMob(m, damage, color, life = .27, radius = 17) {
@@ -458,7 +535,7 @@ function updateCommand() {
   $('aimHint').textContent=command==='bomb'?'포격할 위치를 누르세요':'감속 지대를 놓을 위치를 누르세요';
 }
 function openCommands() {
-  if(state.gameover || choosing() || state.tactics===0) return;
+  if(state.gameover || saveConflict || choosing() || state.tactics===0) return;
   if(command) { command=null;updateCommand();return; }
   showModal(`<h2>전술 지령</h2><p>웨이브마다 포인트 2개를 받습니다. 전술마다 1개를 사용합니다.</p><div class="market-grid"><button data-order="bomb">집중 포격 · 지정 위치에 광역 피해</button><button data-order="slow">결빙 지대 · 지정 위치에 4초 감속</button><button data-order="shield" ${state.shield?'disabled':''}>방어막 · 다음 일반 돌파 1회 방어</button></div>`);
 }
@@ -546,7 +623,7 @@ function moveEnemy(m,dt) {
 }
 
 function update(dt){toastTimer-=dt;annTimer-=dt;if(toastTimer<=0)$('toast').style.opacity=0;if(annTimer<=0)$('announcement').style.opacity=0;
-if(!path||state.paused||state.gameover||choosing()||$('modal').open)return;
+if(!path||state.paused||saveConflict||state.gameover||choosing()||$('modal').open)return;
 visualTime += dt;
 spellFlash = Math.max(0, spellFlash-dt);
 fieldImpact=Math.max(0,fieldImpact-dt/state.speed);
@@ -929,6 +1006,25 @@ function spend(action,type) {
   persist();
   if(action!=='charge') showMarket();
 }
+const reconNotes={
+  runner:'빠르게 이동합니다. 결빙 지대나 범위 공격을 준비하세요.',
+  shell:'장갑이 높습니다. 관통 동료가 장갑을 무시합니다.',
+  mender:'주변 적을 회복시킵니다. 회복병 우선으로 조준하세요.',
+  scout:'기본 전열입니다.',wraith:'빠르게 움직이며 가벼운 장갑을 갖췄습니다.'
+};
+function showRecon() {
+  const wave=Math.min(finalWave,state.wave+1);
+  const count=waveTotal(wave);
+  const groups={};
+  for(let i=0;i<count;i++) {
+    const boss=wave%bossInterval===0&&i===count-1;
+    const kind=ZundaExpedition.kind(wave,i,boss);
+    groups[kind]=(groups[kind]??0)+1;
+  }
+  const entries=Object.entries(groups).map(([kind,quantity])=>
+    `<li><b>${ZundaExpedition.opponents[kind].name} ×${quantity}</b> · ${reconNotes[kind]??'돌진 예고에 저지를 누르세요. 방패가 한 번 재생됩니다.'}</li>`).join('');
+  showModal(`<h2>${wave}웨이브 정찰</h2><p>${count}마리 · ${ZundaExpedition.region(wave).name}</p><ul>${entries}</ul>`);
+}
 function syncFocus() {
   const focus=$('focus');
   focus.setAttribute('aria-pressed',state.targetPriority!=='lead');
@@ -937,6 +1033,8 @@ function syncFocus() {
 syncSoundButton();
 if(expedition) {
   $('interrupt').onclick=interrupt;
+  $('recon').onclick=showRecon;
+  $('reloadSave').onclick=()=>location.reload();
   $('tactics').onclick=openCommands;
   canvas.addEventListener('click',fireCommand);
   $('reserveTab').onclick=()=>{reserveView=!reserveView;selectedUnit=null;refresh();};

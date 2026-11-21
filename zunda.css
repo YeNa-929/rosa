@@ -86,3 +86,8 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 #tactics small, .battle-orders #interrupt small { font-size:10px; }
 #tactics[aria-pressed=true] { border-color:#88ffe7; color:#b5fff1; }
 #aimHint { position:absolute; inset:auto 12px 45px; pointer-events:none; padding:6px 8px; color:#d5fffb; background:#163b4dee; border:1px solid #8effdc; border-radius:7px; font-size:12px; z-index:2; }
+
+#saveNotice { margin:6px 10px; padding:8px; background:#512e38; color:#fff1e4; border:1px solid #e7b073; border-radius:7px; font-size:12px; }
+#saveNotice[hidden] { display:none; }
+#reloadSave { margin-left:6px; min-height:32px; padding:2px 7px; }
+[data-expedition] .tactics { grid-template-columns:repeat(3,minmax(0,1fr)); }

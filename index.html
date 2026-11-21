@@ -21,8 +21,8 @@
   <script defer src="art.js?v=moonlit-rose-court"></script>
   <script defer src="audio.js?v=battle-music"></script>
   <script defer src="expedition.js?v=siege-1"></script>
-  <script defer src="game.js?v=siege-1"></script>
-  <link rel="stylesheet" href="zunda.css?v=siege-1">
+  <script defer src="game.js?v=recon-1"></script>
+  <link rel="stylesheet" href="zunda.css?v=recon-1">
 </head>
 <body data-expedition>
   <main id="game">
@@ -32,6 +32,7 @@
       <button id="help" aria-label="게임 방법" aria-haspopup="dialog">?</button>
       <button id="sound" aria-label="음악과 효과음" aria-pressed="false">♪</button>
     </header>
+    <div id="saveNotice" role="status" hidden>다른 탭에서 진행 중입니다. <button id="reloadSave" type="button">최신 진행 불러오기</button></div>
     <section id="stats" aria-label="전투 현황">
       <div class="stat wave"><span>웨이브</span><b id="wave">1</b></div>
       <div class="stat gems"><span>보석</span><b id="gems">14</b></div>
@@ -70,7 +71,7 @@
         <button id="focus" aria-pressed="false">선두 우선</button>
         <button id="reset">새 원정</button>
       </div>
-      <div class="tactics"><button id="recipes" aria-haspopup="dialog">몬스터 조합표</button><button id="market" aria-haspopup="dialog">보급소</button></div>
+      <div class="tactics"><button id="recipes" aria-haspopup="dialog">몬스터 조합표</button><button id="market" aria-haspopup="dialog">보급소</button><button id="recon" aria-haspopup="dialog">다음 웨이브 정찰</button></div>
       <div class="zunda-credit"><a href="wonderland.html">원더랜드 플레이</a><a href="https://zunko.jp/guideline.html">캐릭터 © SSS LLC.</a></div>
     </footer>
     <dialog id="modal" aria-labelledby="modalTitle">
