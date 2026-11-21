@@ -780,7 +780,7 @@ function drawGuardians(motion) {
       y=u.moveFrom.y+(y-u.moveFrom.y)*progress;
       if(progress>=1) u.moveFrom=null;
     }
-    const color = roster[u.type].color;
+    const unit=roster[u.type], color=unit.color;
     const size=expedition ? Math.min(W*.094,H*.11,43) : Math.min(W*.111,H*.119,49);
     const attackAge=visualTime-(u.fired ?? -1);
     const shot = Math.max(0,1-attackAge/.27);
@@ -828,7 +828,13 @@ function drawGuardians(motion) {
       g.save();
       g.translate(spriteX,spriteY+size*.42);
       if(strike && Math.cos(u.aim)<0) g.scale(-1,1);
-      if(!strike && motion && shot) g.rotate(Math.cos(u.aim)*shot*.14);
+      if(!strike && motion && shot) {
+        const pulse=Math.sin(shot*Math.PI);
+        const thrust=unit.effect==='pierce' || unit.effect==='execute';
+        if(unit.effect==='frost' || unit.effect==='chain') g.translate(0,-size*.11*pulse);
+        g.rotate(Math.cos(u.aim)*pulse*(thrust ? .23 : .13));
+        g.scale(1+pulse*(thrust ? .18 : .10),1-pulse*.08);
+      }
       g.drawImage(image,-width/2,-height,width,height);
       silhouettes.push({id:u.id,left:spriteX-width/2,right:spriteX+width/2,bottom:spriteY+size*.42,height});
       g.restore();
@@ -1251,9 +1257,10 @@ function renderUnitGrowth(unit) {
   const canTrain=unit.tier<4;
   const increase=canTrain ? ' → '+Math.round(unitAttackDamage(next)) : '';
   const partner=mergePartner(unit);
+  const stage=roster[unit.type].stage;
   return `<section class="unit-growth" aria-label="동료 성장">
     <div><strong>★${unit.tier} · 공격 ${Math.round(unitAttackDamage(unit))}${increase}</strong>
-    <small>초당 ${unitAttackRate(unit).toFixed(2)}회 · 사거리 ${Math.round(roster[unit.type].range*(1+(unit.tier-1)*.08))}</small><small>보유 보석 ◆ ${state.gems}</small></div>
+    ${stage ? `<small>진화 ${stage} / 5단계</small>` : ''}<small>초당 ${unitAttackRate(unit).toFixed(2)}회 · 사거리 ${Math.round(roster[unit.type].range*(1+(unit.tier-1)*.08))}</small><small>보유 보석 ◆ ${state.gems}</small></div>
     <div class="unit-training-actions"><button id="trainUnit" type="button" ${canTrain && state.gems>=cost?'':'disabled'}>${canTrain ? (state.gems>=cost?'별 훈련':'보석 부족')+' · ◆ '+cost : '훈련 완료'}</button>
       ${partner ? '<button id="mergeUnitStars" type="button">같은 동료 별 합성</button>' : ''}</div>
   </section>`;
@@ -1274,7 +1281,7 @@ function showUnitRecipes(unitId,result='') {
       <div class="unit-fusion-pictures">
         ${fusionPortrait(recipe.first,status(owned[0]))}
         ${fusionPortrait(recipe.second,status(owned[1]))}
-        ${fusionPortrait(recipe.type,ready?'결과 · ★'+Math.min(...owned.map(unit=>unit.tier)):'조합 결과')}
+        ${fusionPortrait(recipe.type,(ready?'결과 · ★'+Math.min(...owned.map(unit=>unit.tier)):'조합 결과')+(recipe.stage?' · '+recipe.stage+'단계':''))}
       </div>
       <button type="button" data-unit-fuse="${index}" data-fusion-unit="${unitId}" ${ready?'':'disabled'}>조합하기</button>
     </article>`;
@@ -1543,7 +1550,8 @@ const release = {
     '동료를 눌러 능력치를 비교하고, 별 훈련·같은 동료 별 합성·전용 무기 강화·조합을 한곳에서 할 수 있습니다.',
     '처음 영입하거나 새로 출전하는 동료는 비어 있는 입구 위쪽 칸부터 배치합니다.',
     '웨이브 보급 내역을 전장 아래에 표시하고, 주요 전투 버튼과 정찰을 찾기 쉽게 정리했습니다.',
-    '전투 메뉴의 간식 폭풍을 제거했습니다. 도감은 도움말에, 새 게임은 타이틀에 있습니다.'
+    '전투 메뉴의 간식 폭풍을 제거했습니다. 도감은 도움말에, 새 게임은 타이틀에 있습니다.',
+    '네 주인공은 기본형부터 5단계까지 진화하며, 모든 단계에서 전용 공격 자세가 나옵니다.'
   ]
 };
 const releaseHistory = [
