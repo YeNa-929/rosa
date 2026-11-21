@@ -422,6 +422,52 @@ body[data-expedition].fit-screen footer button { min-height:44px; padding-inline
 body[data-expedition].fit-screen .battle-sidebar .zunda-credit { display:none; }
 body[data-expedition].fit-screen #waveSupply,
 body[data-expedition].fit-screen #autoRecruitFeed { font-size:10px; }
+body[data-expedition].landscape-layout #game {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) clamp(220px,29vw,350px);
+    grid-template-rows:auto auto minmax(0,1fr);
+    width:min(100%,1600px);
+    height:100dvh;
+  }
+body[data-expedition].landscape-layout #game > header,
+body[data-expedition].landscape-layout #saveNotice { grid-column:1 / -1; }
+body[data-expedition].landscape-layout #game > header {
+    grid-row:1;
+    padding-block:3px;
+  }
+body[data-expedition].landscape-layout #game > header h1 {
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+body[data-expedition].landscape-layout #saveNotice { grid-row:2; }
+body[data-expedition].landscape-layout .battlefield-layout {
+    display:grid;
+    grid-row:3;
+    grid-column:1;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto auto minmax(0,1fr) auto;
+    min-height:0;
+    min-width:0;
+    background:#17243c;
+  }
+body[data-expedition].landscape-layout #stage { min-height:0; }
+body[data-expedition].landscape-layout .battle-sidebar {
+    display:flex;
+    flex-direction:column;
+    grid-row:3;
+    grid-column:2;
+    min-height:0;
+    min-width:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    border-inline-start:1px solid #526989;
+    background:#1b2236;
+  }
+body[data-expedition].landscape-layout .battle-sidebar footer { flex:1; }
+body[data-expedition].landscape-layout .actions button { min-height:46px; }
+body[data-expedition].landscape-layout .battle-sidebar .section-title { padding-block:2px; }
+
 body[data-expedition].fit-screen { overflow:hidden; }
 body[data-expedition].fit-screen #game {
   position:fixed;

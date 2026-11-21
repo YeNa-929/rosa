@@ -1487,6 +1487,15 @@ if(expedition) {
   const display=document.body;
   const fitEnabled=()=>display.classList.contains('fit-screen');
   const viewport=window.visualViewport;
+  const wideScreen=matchMedia('(min-width:568px) and (orientation:landscape)');
+  function syncDirection() {
+    const mobileDirection=matchMedia('(pointer:coarse)').matches && screen.orientation?.type;
+    const landscape=wideScreen.matches && (!mobileDirection || mobileDirection.startsWith('landscape'));
+    display.classList.toggle('landscape-layout',landscape);
+  }
+  syncDirection();
+  screen.orientation?.addEventListener('change',syncDirection);
+  wideScreen.addEventListener('change',syncDirection);
   function syncViewportLayout() {
     if(!fitEnabled()) return;
     display.style.setProperty('--fit-width',(viewport?.width ?? innerWidth)+'px');
@@ -1508,7 +1517,6 @@ if(expedition) {
   screenButton.onclick=async()=>{
     if(fitEnabled()) {
       fitScreen(false);
-      try { screen.orientation?.unlock?.(); } catch {}
       try { if(document.fullscreenElement) await document.exitFullscreen(); } catch {}
       return;
     }
@@ -1528,7 +1536,6 @@ if(expedition) {
       try { if(document.fullscreenElement) await document.exitFullscreen(); } catch {}
       return;
     }
-    try { await screen.orientation?.lock?.('portrait'); } catch {}
     syncViewportLayout();
   };
   installFormationDrag();
@@ -1606,12 +1613,15 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.18',
-  title:'전체 화면 전장 너비 수정',
-  notes:['동료 카드가 늘어나도 전장과 조작 버튼이 화면 안에 유지됩니다.']
+  version:'1.19',
+  title:'가로 전장 복원',
+  notes:['가로로 돌리면 전장 오른쪽에 조작 버튼이 표시됩니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.18',title:'전체 화면 전장 너비 수정',
+  notes:['동료 카드가 늘어나도 전장과 조작 버튼이 화면 안에 유지됩니다.']
+  },
   {version:'1.17',title:'세로 전장과 새 전투 음악',
   notes:['가로 UI를 제거했습니다. 일반 전투 음악 여섯 곡이 두 웨이브마다 교대합니다.']
   },
