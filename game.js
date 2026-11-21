@@ -1082,7 +1082,7 @@ if (state.gameover) end();
 else if (choosing()) { refresh(); showChoices(); }
 else {
   refresh();
-  announce(expedition?'차원 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
+  announce(expedition?'로사 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
 }
 requestAnimationFrame(frame);
 })();
