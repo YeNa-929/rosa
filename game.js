@@ -1180,35 +1180,77 @@ function canUseRecipe(recipe) {
 }
 function autoFuse() {
   if(state.gameover || saveConflict || choosing() || $('modal').open) return;
-  let best=null;
-  for(const [index,recipe] of ZundaExpedition.fusionRecipes.entries()) {
-    if(!canUseRecipe(recipe)) continue;
-    const [first,second]=ingredients(recipe);
-    if(!first || !second) continue;
-    const power=combatPower({type:recipe.type,tier:Math.min(first.tier,second.tier)});
-    const gain=power-combatPower(first)-combatPower(second);
-    if(!best || gain>best.gain || (gain===best.gain && power>best.power)) best={index,gain,power};
+  const stock=new Map();
+  for(const unit of state.units) {
+    if(!stock.has(unit.type)) stock.set(unit.type,[]);
+    stock.get(unit.type).push(unit);
   }
-  if(best) fuse(best.index,{stayInBattle:true});
-  else toast('현재 보유 동료로 조합할 수 있는 조합이 없습니다');
+  for(const units of stock.values()) units.sort((a,b)=>b.tier-a.tier);
+  const recipes=new Map();
+  for(const recipe of ZundaExpedition.fusionRecipes.filter(canUseRecipe)) {
+    if(!recipes.has(recipe.type)) recipes.set(recipe.type,[]);
+    recipes.get(recipe.type).push(recipe);
+  }
+  // Reserve actual units while exploring both branches. Resume to try another recipe.
+  function* materials(type,path) {
+    const units=stock.get(type);
+    if(units?.length) {
+      const unit=units.pop();
+      yield {unit};
+      units.push(unit);
+    }
+    if(path.has(type)) return;
+    const ancestors=new Set(path).add(type);
+    for(const recipe of recipes.get(type) ?? []) yield* plans(recipe,ancestors);
+  }
+  function* plans(recipe,path) {
+    for(const first of materials(recipe.first,path))
+      for(const second of materials(recipe.second,path)) yield {recipe,first,second};
+  }
+  let steps=0;
+  function assemble(node) {
+    if(node.unit) return node.unit;
+    const first=assemble(node.first);
+    const second=assemble(node.second);
+    steps++;
+    return combineUnits(node.recipe,first,second);
+  }
+  const power=type=>combatPower({type,tier:1});
+  const targets=[...recipes.keys()].sort((a,b)=>power(b)-power(a));
+  for(const type of targets) {
+    for(const recipe of recipes.get(type)) {
+      const plan=plans(recipe,new Set([type])).next().value;
+      if(!plan) continue;
+      assemble(plan);
+      selectedUnit=null;
+      announce(recipe.name+' 탄생! · '+steps+'회 조합');
+      refresh();
+      persist();
+      return;
+    }
+  }
+  toast('현재 보유 동료로 조합할 수 있는 조합이 없습니다');
 }
-function fuse(index,{filter='all',search='',species='all',unitId=null,stayInBattle=false}={}) {
+function combineUnits(recipe,first,second) {
+  const anchor=first.reserve && !second.reserve ? second : first;
+  const consumed=anchor===first ? second : first;
+  const evolved={id:uid++,type:recipe.type,slot:anchor.slot,reserve:anchor.reserve,tier:Math.min(first.tier,second.tier),cool:0,born:visualTime};
+  state.units[state.units.indexOf(anchor)]=evolved;
+  state.units.splice(state.units.indexOf(consumed),1);
+  return evolved;
+}
+function fuse(index,{filter='all',search='',species='all',unitId=null}={}) {
   const recipe=ZundaExpedition.fusionRecipes[index];
   if(!canUseRecipe(recipe) || state.gameover || saveConflict || choosing()) return;
   const [first,second]=ingredients(recipe,unitId);
-  if(!first || !second) return;
-  const anchor=first.reserve && !second.reserve ? second : first;
-  const consumed=anchor===first ? second : first;
-  const slot=state.units.indexOf(anchor);
-  const evolvedId=uid++;
-  state.units[slot]={id:evolvedId,type:recipe.type,slot:anchor.slot,reserve:anchor.reserve,tier:Math.min(first.tier,second.tier),cool:0,born:visualTime};
-  state.units.splice(state.units.indexOf(consumed),1);
+  if(!first || !second || first===second) return;
+  const evolvedId=combineUnits(recipe,first,second).id;
   selectedUnit=null;
   const result=recipe.name+' 탄생!';
   announce(result);
   refresh();
   persist();
-  if(!saveConflict && !stayInBattle) {
+  if(!saveConflict) {
     if(unitId===null) showRecipes({filter,search,species,result});
     else showUnitRecipes(evolvedId,result);
     $('recipeStatus').focus();
@@ -1613,12 +1655,15 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.20',
-  title:'대기 보관함 확장과 전투 난이도 상향',
-  notes:['대기 동료 수 제한을 해제했습니다. 첫 웨이브부터 적이 더 촘촘히 등장하며 일반 적과 보스의 체력 및 이동 속도가 증가합니다.']
+  version:'1.21',
+  title:'하위 재료 일괄 조합',
+  notes:['자동 조합 한 번으로 출전·대기 동료를 사용해 필요한 중간 조합부터 목표 동료까지 완성합니다.']
 };
 const releaseHistory = [
   release,
+  {version:'1.20',title:'대기 보관함 확장과 전투 난이도 상향',
+  notes:['대기 동료 수 제한을 해제했습니다. 첫 웨이브부터 적이 더 촘촘히 등장하며 일반 적과 보스의 체력 및 이동 속도가 증가합니다.']
+  },
   {version:'1.19',title:'가로 전장 복원',
   notes:['가로로 돌리면 전장 오른쪽에 조작 버튼이 표시됩니다.']
   },
