@@ -4,17 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#181323">
-  <title>원더랜드 랜덤 디펜스</title>
+  <title>즌다 원정대 · 비영리 팬게임</title>
   <link rel="stylesheet" href="style.css?v=zunda-expedition">
   <script defer src="art.js?v=moonlit-rose-court"></script>
   <script defer src="audio.js?v=battle-music"></script>
   <script defer src="game.js?v=zunda-expedition"></script>
+  <link rel="stylesheet" href="zunda.css">
 </head>
-<body>
+<body data-expedition>
   <main id="game">
     <header>
-      <span class="crest" aria-hidden="true">♠</span>
-      <h1>Wonderland <small>원더랜드 랜덤 디펜스</small></h1>
+      <span class="crest" aria-hidden="true">✦</span>
+      <h1>즌다 원정대 <small>비영리 로그라이트 디펜스</small></h1>
       <button id="help" aria-label="게임 방법" aria-haspopup="dialog">?</button>
       <button id="sound" aria-label="음악과 효과음" aria-pressed="false">♪</button>
     </header>
@@ -25,33 +26,34 @@
       <div class="stat life"><span>생명</span><b id="life">25</b></div>
     </section>
     <section id="boss" aria-label="보스 현황">
-      <div id="bosslabel">다음 보스 · 웨이브 5</div>
+      <div id="bosslabel">다음 보스 · 웨이브 4</div>
       <div class="meter"><i id="bossbar"></i></div>
     </section>
     <div id="stage">
-      <canvas id="board" aria-label="달빛 장미 정원 전투 필드"></canvas>
-      <div class="stage-caption"><span>달빛 장미 정원</span><span id="roundflag">전투 중</span></div>
+      <canvas id="board" aria-label="즌다 원정대 전투 필드"></canvas>
+      <div class="stage-caption"><span>간식 정원</span><span id="roundflag">전투 중</span></div>
       <div id="announcement" role="status"></div>
       <div id="toast" role="status"></div>
     </div>
-    <section id="roster" aria-label="나의 수호자">
-      <div class="section-title">나의 수호자 <span id="count">0 / 18</span><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
+    <section id="roster" aria-label="나의 동료">
+      <div class="section-title">나의 수호자 <span id="count">0 / 12</span><button id="auto" type="button" aria-pressed="false">자동 소환 <span id="autoStatus">OFF</span></button></div>
       <div id="cards"></div>
     </section>
     <footer>
       <div class="actions">
-        <button id="summon" class="primary"><span aria-hidden="true">✦</span> 소환 <small>보석 2</small></button>
-        <button id="merge"><span aria-hidden="true">❖</span> 합성 <small>동일 3명</small></button>
+        <button id="summon" class="primary"><span aria-hidden="true">✦</span> 영입 <small>보석 2</small></button>
+        <button id="merge"><span aria-hidden="true">❖</span> 합성 <small>동일 2명</small></button>
         <button id="upgrade"><span aria-hidden="true">↟</span> 강화 <small id="upgradeCost">골드 30</small></button>
-        <button id="spell"><span aria-hidden="true">☾</span> 마법 <small id="spellCost">준비 완료</small></button>
+        <button id="spell"><span aria-hidden="true">☾</span> 간식 폭풍 <small id="spellCost">준비 완료</small></button>
       </div>
       <div class="subactions">
         <button id="speed">1배속</button>
         <button id="pause" aria-pressed="false">일시정지</button>
         <button id="codex" aria-haspopup="dialog">도감</button>
-        <button id="reset">새 게임</button>
+        <button id="focus" aria-pressed="false">선두 우선</button>
+        <button id="reset">새 원정</button>
       </div>
-      <div class="mode-link"><a href="zunda.html">즌다 원정대 플레이</a></div>
+      <div class="zunda-credit"><a href="wonderland.html">원더랜드 플레이</a><a href="https://zunko.jp/guideline.html">캐릭터 © SSS LLC.</a></div>
     </footer>
     <dialog id="modal" aria-labelledby="modalTitle">
       <div class="panel">
