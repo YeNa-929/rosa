@@ -210,6 +210,11 @@ function reconcileSlots(atEntrance=false) {
   }
   if(!state.units.some(unit=>unit.id===selectedUnit)) selectedUnit=null;
 }
+function boardPixelRatio() {
+  const ratio=devicePixelRatio || 1;
+  if(!expedition) return Math.min(ratio,2);
+  return Math.min(ratio,2.5,Math.sqrt(5000000/(W*H)));
+}
 function resize() {
   const rect = canvas.getBoundingClientRect();
   if (!rect.width || !rect.height) return;
@@ -218,7 +223,7 @@ function resize() {
   H = rect.height;
   // Keep combat distances and route progress independent of the display aspect ratio.
   if(expedition) {combatScaleX=W/390;combatScaleY=H/320;}
-  const d = Math.min(devicePixelRatio || 1, 2);
+  const d=boardPixelRatio();
   canvas.width = Math.round(W * d);
   canvas.height = Math.round(H * d);
   g.setTransform(d, 0, 0, d, 0, 0);
@@ -248,7 +253,7 @@ function resize() {
     item.y *= scaleY;
   }
 }
-function paintTerrain(d = Math.min(devicePixelRatio || 1,2)) {
+function paintTerrain(d=boardPixelRatio()) {
   terrain=expedition ? ZundaExpedition.terrain(W,H,path,d,state.wave,()=>paintTerrain()) : CourtArt.terrain(W,H,path,d);
   if(expedition) $('regionName').textContent=ZundaExpedition.region(state.wave).name+(state.wave>16?' · 심층':'');
 }
@@ -1631,18 +1636,17 @@ function showTitleScreen() {
 
 // Publish the next minor version with its notes. Keep past version strings unchanged.
 const release = {
-  version:'1.10',
-  title:'입구 재배치, 자동 조합과 연마석',
+  version:'1.11',
+  title:'넓어진 전장과 한 줄 동료 메뉴',
   notes:[
-    '다음 웨이브가 시작되면 출전 동료는 현재 입구 위쪽 칸부터 재배치됩니다.',
-    '자동 조합을 누를 때마다 보유 재료로 가능한 조합 중 전투력 이득이 가장 큰 한 건을 실행합니다.',
-    '네 주인공은 진화 단계와 관계없이 각각 한 명만 출전합니다. 여분은 대기열에 보관할 수 있습니다.',
-    '전용 무기는 연마석으로 강화합니다. 일반 웨이브에서 1개, 보스 웨이브에서 2개를 받습니다.',
-    '드래그 도중 화면이 바뀌거나 입력이 끊겨도 동료 그림이 화면에 남지 않습니다.'
+    '자동 배치, 자동 조합, 자동 소환 버튼을 화면 너비에 맞춰 한 줄에 배치합니다.',
+    '세로 화면에서는 전장이 더 높고, 가로 화면에서는 전장이 더 넓습니다.',
+    '고해상도 화면에서 전장 그림을 더 선명하게 표시합니다.'
   ]
 };
 const releaseHistory = [
   release,
+  {version:'1.10',title:'입구 재배치, 자동 조합과 연마석',notes:['웨이브마다 입구로 다시 배치하고, 자동 조합은 한 번 누를 때 한 건을 실행합니다. 무기 강화에는 연마석을 쓰며, 주인공은 각각 한 명만 출전합니다. 드래그 중단도 처리합니다.']},
   {version:'1.9',title:'가로 모드',notes:['가로 화면에서 전장은 왼쪽, 동료와 조작 버튼은 오른쪽에 표시되며 화면을 돌려도 전투 진행과 배치가 유지됩니다.']},
   {version:'1.8',title:'동료 성장과 간결해진 전투 화면',notes:['동료 메뉴에 성장과 배치를 모으고, 네 주인공의 5단 진화와 전용 공격 자세를 추가했습니다. 신규 동료는 입구 위쪽에 먼저 배치됩니다.']},
   {version:'1.7',title:'전투력 기준 자동 배치',notes:['출전·대기 동료 중 전투력이 높은 순으로 배치합니다. 계속 출전하는 동료는 현재 자리를 유지합니다.']},
