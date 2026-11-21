@@ -158,10 +158,10 @@ const ZundaExpedition = (() => {
   });
 
   const specialties = {
-    seria:{skill:'새벽 폭발 · 주변 적에게 공격력의 62% 피해',splashRadius:86,splashDamage:.62},
-    rune:{skill:'빙결 주문 · 3.2초 동안 적 이동 속도 65% 감소',slowDuration:3.2,slowFactor:.35},
-    tessa:{skill:'연쇄 사격 · 가장 가까운 적 최대 3명에게 추가 피해',chainCount:3},
-    kaela:{skill:'갑옷 가르기 · 방어 무시, 장갑 적에게 피해 25% 증가',armorBonus:1.25}
+    seria:{family:128,gear:{name:'여명검',stat:'splashDamage',step:.08,detail:'강화마다 폭발 피해 +8%p'},skill:'새벽 폭발 · 주변 적에게 공격력의 62% 피해',splashRadius:86,splashDamage:.62},
+    rune:{family:129,gear:{name:'은설 지팡이',stat:'slowDuration',step:.45,detail:'강화마다 빙결 지속 +0.45초'},skill:'빙결 주문 · 3.2초 동안 적 이동 속도 65% 감소',slowDuration:3.2,slowFactor:.35},
+    tessa:{family:130,gear:{name:'뇌광궁',stat:'splashDamage',step:.10,detail:'강화마다 연쇄 피해 +10%p'},skill:'연쇄 사격 · 가장 가까운 적 최대 3명에게 추가 피해',chainCount:3},
+    kaela:{family:131,gear:{name:'월흔도',stat:'armorBonus',step:.10,detail:'강화마다 장갑 적 추가 피해 +10%p'},skill:'갑옷 가르기 · 방어 무시, 장갑 적에게 피해 25% 증가',armorBonus:1.25}
   };
   const heroines = [
     {type:124,first:15,second:16,name:'새벽검 로사',effect:'burst',color:'#ffaf80',dmg:134,rate:1.06,range:178,slug:'seria'},
@@ -169,11 +169,11 @@ const ZundaExpedition = (() => {
     {type:126,first:7,second:20,name:'뇌전궁 소설가',effect:'chain',color:'#91f5ca',dmg:124,rate:1.08,range:191,slug:'tessa'},
     {type:127,first:14,second:20,name:'월식검 빰',effect:'pierce',color:'#dfb4ff',dmg:146,rate:.98,range:185,slug:'kaela'}
   ];
-  forms.push(...heroines.map(hero=>({
+  const finalForms=heroines.map(hero=>({
     ...hero,...specialties[hero.slug],hue:0,silhouette:'hero',projectile:410,
     portrait:'assets/heroines/'+hero.slug+'.webp',
     attack:'assets/heroines/'+hero.slug+'-attack.webp'
-  })));
+  }));
 
   const rookies = [
     {type:128,name:'여행자 로사',effect:'burst',dmg:26,rate:.92,range:137,slug:'seria'},
@@ -184,9 +184,22 @@ const ZundaExpedition = (() => {
     ...rookie,...specialties[rookie.slug],color:heroines[i].color,silhouette:'hero',
     portrait:'assets/heroines/'+rookie.slug+'-starter.webp'
   }));
+  const middleForms = [
+    {type:132,first:128,second:12,name:'여명 기사 로사',dmg:67,rate:.98,range:157},
+    {type:133,first:129,second:6,name:'빙정술사 프패',dmg:54,rate:1.36,range:163},
+    {type:134,first:130,second:10,name:'번개궁 소설가',dmg:61,rate:1.09,range:177},
+    {type:135,first:131,second:8,name:'초승검 빰',dmg:74,rate:.99,range:151}
+  ].map(form=>{
+    const base=rookies.find(rookie=>rookie.type===form.first);
+    return {...base,...form,hue:0,projectile:390,portrait:'assets/heroines/'+base.slug+'-vanguard.webp'};
+  });
+  forms.push(...finalForms,...middleForms);
   const fusionRecipes = [
     ...forms,
-    ...forms.slice(-rookies.length).map((form,i)=>({...form,first:rookies[i].type}))
+    ...finalForms.flatMap(form=>[
+      {...form,first:form.family},
+      {...form,first:middleForms.find(middle=>middle.family===form.family).type}
+    ])
   ];
 
   const image = src => { const sprite=new Image(); sprite.src=src; return sprite; };

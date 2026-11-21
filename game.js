@@ -61,7 +61,7 @@ const keepPhase = phase => expedition && ['draft','reward'].includes(phase) ? ph
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let terrain, path, lengths, pathLength, rosterKey, rosterOver, nextRefresh = 0, spellFlash = 0;
 const SAVE=expedition ? 'zunda-expedition-v1' : 'wonderland-defense-v2';let state, lastStored=null, saveConflict=false, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0;
-const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false,targetPriority:'lead',tactics:2,shield:0,expansions:0,shopOffers:[],shopCount:0,contract:'none'});
+const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false,targetPriority:'lead',tactics:2,shield:0,expansions:0,shopOffers:[],shopCount:0,contract:'none',gear:{}});
 function restore() {
   const defaults=fresh();
   try {
@@ -71,6 +71,10 @@ function restore() {
     const {encounter,...progress}=saved;
     const result={...defaults,...progress,spawned:0,phase:keepPhase(saved.phase),spawnTimer:.8,breakTimer:0,
       paused:saved.gameover===true||saved.life===0,gameover:saved.gameover===true||saved.life===0};
+    if(expedition) result.gear=Object.fromEntries(ZundaExpedition.rookies.map(({family})=>{
+      const rank=saved.gear?.[family];
+      return [family,Number.isInteger(rank) ? Math.max(0,Math.min(2,rank)) : 0];
+    }));
     result.units=saved.units.slice(0,storageLimit).filter(u=>roster[u.type]&&u.tier>=1&&u.tier<=4).map(u=>({
       type:u.type,tier:u.tier,slot:u.slot,reserve:expedition&&u.reserve===true,id:uid++,
       cool:Number.isFinite(u.cool)?Math.max(0,u.cool):Math.random()
@@ -256,7 +260,7 @@ function showChoices() {
     const title = draft ? roster[i].name : contract ? sectorRules[i].title : supplies[i][0];
     const detail = draft ? '기본형 · '+roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
     const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
-    return `<button data-choice="${i}">${art}<b>${title}</b><small>${detail}</small></button>`;
+    return `<button data-choice="${i}">${art}<b>${title}</b><small>${detail}${draft ? ' · 전용 무기 '+roster[i].gear.name : ''}</small></button>`;
   });
   showModal(`<h2>${draft?'첫 동료를 선택하세요':contract?'다음 구역의 작전을 고르세요':'원정 보급품을 고르세요'}</h2><p>${draft?'네 명 중 한 명과 원정을 시작하세요. 각 동료의 고유 능력은 상위 조합 후에도 이어집니다.':contract?'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
   $('close').hidden=true;
@@ -489,14 +493,17 @@ function damageMob(m, damage, color, life = .27, radius = 17) {
 function hit(m, damage, source) {
   if (m.hp <= 0) return;
   const unit=roster[source.type], effect=unit.effect;
-  if(unit.armorBonus && m.armor>0) damage*=unit.armorBonus;
+  const rank=state.gear?.[unit.family] ?? 0;
+  const gear=unit.gear;
+  const trait=(name,fallback)=>(unit[name] ?? fallback)+(gear?.stat===name ? rank*gear.step : 0);
+  if(unit.armorBonus && m.armor>0) damage*=trait('armorBonus',1);
   const afterArmor=(mob,amount)=>effect==='pierce' ? amount : amount*(1-mob.armor);
   if(effect==='execute' && m.hp <= m.max*.4) damage*=1.75;
   damageMob(m,afterArmor(m,damage),source.color);
   if((effect==='frost' || source.type===3) && m.hp>0) {
     const factor=unit.slowFactor ?? (source.type===3 ? .55 : .51);
     if(m.slow<=0 || factor<=m.slowFactor) {
-      m.slow=unit.slowDuration ?? (source.type===3 ? 2.5 : 2.9);
+      m.slow=trait('slowDuration',source.type===3 ? 2.5 : 2.9);
       m.slowFactor=factor;
     }
   }
@@ -506,7 +513,7 @@ function hit(m, damage, source) {
     const neighbors=mobs.filter(other=>other!==m && other.hp>0 && distance(other)<radius);
     if(unit.chainCount) neighbors.sort((a,b)=>distance(a)-distance(b));
     const targets=effect==='chain' ? neighbors.slice(0,unit.chainCount ?? 2) : neighbors;
-    for(const other of targets) damageMob(other,afterArmor(other,damage*(unit.splashDamage ?? .43)),source.color);
+    for(const other of targets) damageMob(other,afterArmor(other,damage*trait('splashDamage',.43)),source.color);
   }
   if (source.type === 4) {
     for (const other of mobs) {
@@ -1038,6 +1045,8 @@ function marketOffers() {
   return options;
 }
 function trainingCost(unit) { return 3+unit.tier*3; }
+const gearCost=[6,11];
+const ownsGearFamily=family=>state.units.some(unit=>roster[unit.type].family===family);
 function showMarket() {
   if(state.gameover) return;
   if(state.shopOffers.length===0) { state.shopOffers=marketOffers(); persist(); }
@@ -1046,7 +1055,11 @@ function showMarket() {
   const expansionCost=7+state.expansions*3;
   const choices=state.shopOffers.map(type=>`<button class="market-recruit" data-market="recruit" data-type="${type}" ${state.units.length>=storageLimit || state.gems<recruitCost?'disabled':''}><img alt="" referrerpolicy="no-referrer" src="${portraits[type]}"><span>${roster[type].name} · ◆ ${recruitCost}</span></button>`).join('');
   const train=picked && picked.tier<4 ? `<button data-market="train" ${state.gems<trainingCost(picked)?'disabled':''}>${roster[picked.type].name} 훈련 · ◆ ${trainingCost(picked)}</button>` : '<p>카드에서 동료를 한 명 선택하면 보석으로 4성까지 훈련할 수 있습니다.</p>';
-  showModal(`<h2>원정 보급소</h2><p>보유 보석 ◆ ${state.gems} · 출전 ${deployedCount()} / ${capacity()} · 보유 ${state.units.length} / ${storageLimit}</p><div class="market-grid">${choices}<button data-market="reroll" ${state.gems<2?'disabled':''}>영입 목록 갱신 · ◆ 2</button><button data-market="expand" ${capacity()>=rosterLimit || state.gems<expansionCost?'disabled':''}>편성 두 자리 확장 · ◆ ${expansionCost}</button>${train}<button data-market="charge" ${state.gems<4 || state.spellCD===0?'disabled':''}>간식 폭풍 즉시 충전 · ◆ 4</button></div>`);
+  const weapons=ZundaExpedition.rookies.filter(hero=>ownsGearFamily(hero.family)).map(({family,gear})=>{
+    const rank=state.gear[family] ?? 0, cost=gearCost[rank];
+    return `<button data-market="gear" data-type="${family}" ${cost===undefined || state.gems<cost?'disabled':''}>${gear.name} +${rank} · ${cost===undefined?'최대 강화':'강화 ◆ '+cost}<small>${gear.detail}</small></button>`;
+  }).join('');
+  showModal(`<h2>원정 보급소</h2><p>보유 보석 ◆ ${state.gems} · 출전 ${deployedCount()} / ${capacity()} · 보유 ${state.units.length} / ${storageLimit}</p><div class="market-grid">${choices}<button data-market="reroll" ${state.gems<2?'disabled':''}>영입 목록 갱신 · ◆ 2</button><button data-market="expand" ${capacity()>=rosterLimit || state.gems<expansionCost?'disabled':''}>편성 두 자리 확장 · ◆ ${expansionCost}</button>${train}<button data-market="charge" ${state.gems<4 || state.spellCD===0?'disabled':''}>간식 폭풍 즉시 충전 · ◆ 4</button></div>${weapons ? `<h3>전용 무기</h3><div class="market-grid weapon-grid">${weapons}</div>` : ''}`);
 }
 function spend(action,type) {
   if(state.gameover || choosing()) return;
@@ -1071,6 +1084,12 @@ function spend(action,type) {
     if(!picked || picked.tier>=4 || state.gems<trainingCost(picked)) return;
     state.gems-=trainingCost(picked);
     picked.tier++;
+  } else if(action==='gear') {
+    if(!ZundaExpedition.rookies.some(hero=>hero.family===type) || !ownsGearFamily(type)) return;
+    const rank=state.gear[type] ?? 0, cost=gearCost[rank];
+    if(cost===undefined || state.gems<cost) return;
+    state.gems-=cost;
+    state.gear[type]=rank+1;
   } else if(action==='charge') {
     if(state.gems<4 || state.spellCD===0) return;
     state.gems-=4;
@@ -1183,18 +1202,18 @@ function showTitleScreen() {
 
 // Change the release ID and notes together when publishing a player-facing update.
 const release = {
-  id:'2026-11-21-four-starters',
-  title:'네 명의 시작 동료와 새 조합표',
+  id:'2026-11-21-human-evolution',
+  title:'주인공 진화와 전용 무기',
   notes:[
-    '새 원정의 첫 동료를 로사, 프패, 소설가, 빰 중 한 명으로 고릅니다.',
-    '새벽 폭발, 빙결 주문, 연쇄 사격, 갑옷 가르기 중 원하는 전투 방식으로 시작하세요.',
-    '고유 능력은 상위 조합형으로 진화한 뒤에도 이어집니다.',
-    '새 조합표는 만들 수 있는 동료를 먼저 보여주고, 부족한 재료와 보유한 별 등급을 표시합니다.',
-    '네 주인공이 함께 그려진 타이틀에서 업데이트 내역을 확인할 수 있습니다. 전투 중에도 타이틀로 돌아가거나, 저장된 원정을 이어서 플레이할 수 있습니다.'
+    '네 주인공은 같은 모습의 인간형으로 진화하고, 보급소에서 전용 무기를 강화할 수 있습니다.',
+    '네 주인공의 타이틀 일러스트가 화면 전체를 채웁니다.',
+    '접속 시 업데이트 안내 뒤에 전투 화면이 보이지 않습니다.',
+    '한글 제목과 전투 UI의 글꼴을 바꿔 작은 화면에서 읽기 쉽게 다듬었습니다.'
   ]
 };
 const releaseHistory = [
   release,
+  {title:'네 명의 시작 동료와 새 조합표',notes:['첫 동료 네 명의 고유 공격과 재료 보유 여부를 보여주는 조합표가 추가됐습니다. 타이틀에 업데이트 내역과 저장된 원정 이어하기를 추가했습니다.']},
   {title:'타이틀 화면과 기본형 동료',notes:['타이틀에서 게임 시작하기를 눌러 원정을 시작합니다. 로사, 프패, 소설가, 빰의 기본형과 상위 조합 경로가 추가됐습니다.']},
   {title:'상위 조합 동료와 검붉은 군단',notes:['상위 조합 동료 네 명의 공격 모션과 아군 용 네 마리의 일러스트를 추가했습니다. 인간형 적은 아군과 겹칠 때 반투명해집니다.']},
   {title:'전투 음악과 보스 경고',notes:['전투 음악 3곡과 보스 등장 경고음을 추가하고 2~19웨이브 적 체력을 조정했습니다.']}
@@ -1242,6 +1261,7 @@ try { seenRelease=localStorage.getItem(releaseKey); } catch {}
 
 if(expedition && seenRelease!==release.id) {
   refresh();
+  $('modal').classList.add('release-intro');
   showModal('<h2>로사 원정대 업데이트</h2><p><strong>'+release.title+'</strong></p><ul>'+
     release.notes.map(note=>'<li>'+note+'</li>').join('')+
     '</ul><button id="enterAfterUpdate">확인</button>');
@@ -1249,6 +1269,7 @@ if(expedition && seenRelease!==release.id) {
   const finishRelease=()=>{
     try { localStorage.setItem(releaseKey,release.id); } catch {}
     $('modal').removeEventListener('cancel',cancelRelease);
+    $('modal').classList.remove('release-intro');
     $('modal').close();
     showTitleScreen();
   };

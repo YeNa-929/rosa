@@ -1,6 +1,13 @@
-body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; background:radial-gradient(ellipse at top,#345746,#101b1a 70%); }
+body[data-expedition] {
+  --ui-font:"Pretendard Variable","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --heading-font:"Jua",var(--ui-font);
+  font-family:var(--ui-font);
+  --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; background:radial-gradient(ellipse at top,#345746,#101b1a 70%); }
 [data-expedition] header { background:linear-gradient(125deg,#3b644b,#1f372f); }
-[data-expedition] h1 { font:850 clamp(22px,6vw,30px)/1 system-ui,sans-serif; }
+[data-expedition] h1 { font:400 clamp(22px,6vw,30px)/1 var(--heading-font); }
+[data-expedition] h1 small { font-family:var(--ui-font); }
+[data-expedition] .panel h2 { font-family:var(--heading-font); font-weight:400; }
+[data-expedition] .panel p, [data-expedition] .panel li { font-size:14px; }
 [data-expedition] .crest { color:#efffd0; border-color:#a9d083; background:#486b44; }
 [data-expedition] #stats, [data-expedition] #boss { background:#23382f; }
 [data-expedition] .stat { border-color:#5d7762; background:linear-gradient(#395346,#293d39); }
@@ -30,7 +37,7 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 .recipes .recipe { display:grid; grid-template-columns:48px 1fr auto; gap:8px; align-items:center; min-height:58px; padding:5px 8px; text-align:left; }
 .recipe img { width:48px; height:48px; object-fit:contain; }
 .recipe small { display:block; color:#daf2cf; font-size:11px; line-height:1.4; }
-.recipe em { color:#e6f9a9; font:700 10px system-ui; }
+.recipe em { color:#e6f9a9; font:700 11px var(--ui-font); }
 .market-grid button { min-height:44px; width:100%; text-align:left; background:#3d5749; }
 .market-grid p { margin:2px 0; color:#e1eec8; }
 
@@ -51,7 +58,7 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 }
 [data-expedition] .starter-choices button img { width:100%; height:66px; object-fit:contain; }
 [data-expedition] .starter-choices b { font-size:11px; overflow-wrap:anywhere; line-height:1.25; }
-[data-expedition] .starter-choices small { font-size:9px; line-height:1.15; }
+[data-expedition] .starter-choices small { font-size:11px; line-height:1.3; }
 .recipe img, .formation-card img { filter:hue-rotate(var(--portrait-hue,0deg)); }
 .recipe[hidden] { display:none; }
 .recipe-filter { display:flex; align-items:center; gap:5px; font-size:13px; margin-block:6px; }
@@ -93,37 +100,53 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 [data-expedition] .tactics { grid-template-columns:repeat(4,minmax(0,1fr)); }
 
 [data-expedition] dialog.title-screen {
+  position:fixed;
+  inset:0;
   box-sizing:border-box;
   width:100%;
-  height:100%;
+  height:100dvh;
   max-width:none;
   max-height:none;
   margin:0;
   border:0;
   border-radius:0;
-  background:radial-gradient(ellipse at 50% 30%,#263153,#0c1220 74%);
+  background:#0c1220;
 }
 .title-screen .panel {
+  isolation:isolate;
   box-sizing:border-box;
   min-height:100%;
   display:grid;
-  place-items:center;
+  justify-items:center;
+  align-items:end;
   text-align:center;
-  padding:16px 12px 28px;
+  padding:16px 12px max(24px,calc(env(safe-area-inset-bottom) + 16px));
+}
+.title-screen .panel::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:linear-gradient(180deg,transparent 46%,#0b101f42 63%,#0b101fe6 90%,#0b101f 100%);
+  pointer-events:none;
 }
 .title-art {
-  display:block;
-  width:min(100%,650px);
-  height:min(63dvh,620px);
-  object-fit:contain;
-  margin:0 auto 6px;
-  mask-image:linear-gradient(#000 90%,transparent);
+  position:absolute;
+  inset:0;
+  z-index:-2;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:50% 20%;
+}
+[data-expedition] dialog.release-intro::backdrop {
+  background:#101522;
 }
 .title-screen h2 {
   margin:0 0 18px;
   color:#fff7db;
-  font:900 clamp(38px,10vw,86px)/1.17 system-ui,sans-serif;
-  letter-spacing:-.05em;
+  font:400 clamp(42px,10vw,86px)/1.17 var(--heading-font);
+  letter-spacing:-.02em;
   text-shadow:0 4px 24px #091321,0 2px 3px #091321;
 }
 .title-screen #startExpedition, #enterAfterUpdate {
@@ -168,3 +191,5 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 .title-menu { display:grid; gap:8px; }
 .title-menu button { min-height:48px; padding:6px 14px; }
 #continueExpedition { border-color:#e6d59b; color:#f8e8af; }
+
+.weapon-grid small { display:block; margin-top:4px; color:#d6ebc7; }
