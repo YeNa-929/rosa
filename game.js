@@ -11,11 +11,11 @@ const roster=[
 const portraits = roster.map((_, type) => CourtArt.portrait(type));
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let terrain, path, lengths, pathLength, rosterKey, rosterOver, nextRefresh = 0, spellFlash = 0;
-const SAVE='wonderland-defense-v2';let state, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0,sound=false,audio;
+const SAVE='wonderland-defense-v2';let state, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0;
 const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false});
-try{const s=JSON.parse(localStorage.getItem(SAVE)||'null');state=s&&Number.isFinite(s.wave)&&Array.isArray(s.units)?{...fresh(),...s,spawned:0,phase:'wave',spawnTimer:.8,breakTimer:0,paused:false,gameover:false,units:s.units.slice(0,18).filter(u=>roster[u.type]&&u.tier>=1&&u.tier<=4).map(u=>({type:u.type,tier:u.tier,id:uid++,cool:Math.random()}))}:fresh()}catch{state=fresh()}
+try{const s=JSON.parse(localStorage.getItem(SAVE)||'null');state=s&&Number.isFinite(s.wave)&&Array.isArray(s.units)?{...fresh(),...s,spawned:0,phase:'wave',spawnTimer:.8,breakTimer:0,paused:s.gameover===true||s.life===0,gameover:s.gameover===true||s.life===0,units:s.units.slice(0,18).filter(u=>roster[u.type]&&u.tier>=1&&u.tier<=4).map(u=>({type:u.type,tier:u.tier,id:uid++,cool:Math.random()}))}:fresh()}catch{state=fresh()}
 function persist(){try{localStorage.setItem(SAVE,JSON.stringify({...state,units:state.units.map(({type,tier})=>({type,tier})),spawned:0,phase:'wave',spawnTimer:.8,breakTimer:0,paused:false}))}catch{}}
-function beep(freq=600,seconds=.07){if(!sound)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();const o=audio.createOscillator(),v=audio.createGain();o.type='sine';o.frequency.value=freq;v.gain.setValueAtTime(.045,audio.currentTime);v.gain.exponentialRampToValueAtTime(.001,audio.currentTime+seconds);o.connect(v);v.connect(audio.destination);o.start();o.stop(audio.currentTime+seconds)}catch{}}
+const beep = CourtAudio.effect;
 function announce(t){$('announcement').textContent=t;$('announcement').style.opacity=1;annTimer=1.7;beep(800)}
 function toast(t){$('toast').textContent=t;$('toast').style.opacity=1;toastTimer=1.9}
 function resize() {
@@ -116,8 +116,20 @@ function closeModal() { $('modal').close(); }
 $('close').onclick = closeModal;
 $('summon').onclick=()=>summon();$('merge').onclick=merge;$('upgrade').onclick=upgrade;$('spell').onclick=spell;
 $('speed').onclick=()=>{state.speed=state.speed===1?2:state.speed===2?3:1;refresh()};$('pause').onclick=()=>{state.paused=!state.paused;refresh()};$('auto').onclick=()=>{state.auto=!state.auto;refresh();persist()};$('reset').onclick=restart;
-$('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'♫':'♪';$('sound').setAttribute('aria-pressed',sound);beep()};
-$('help').onclick=()=>showModal('<h2>♠ 게임 방법</h2><p>수호자를 무작위로 소환해 미로를 지나가는 적을 막으세요.</p><ul><li>🎲 소환: 보석 2개 소모</li><li>✨ 합성: 동일 캐릭터와 등급 3개 → 상위 등급 1개</li><li>⚔ 강화: 모든 수호자 공격력 상승</li><li>🌀 마법: 모든 적 피해 + 4초 둔화</li><li>👑 5웨이브마다 보스 등장</li><li>❤️ 적이 출구에 도달하면 생명 감소</li></ul><p>게임 진행은 이 기기에 자동 저장됩니다.</p>');
+function syncSoundButton() {
+  $('sound').textContent = CourtAudio.enabled ? '♫' : '♪';
+  $('sound').setAttribute('aria-pressed',CourtAudio.enabled);
+  $('sound').title = CourtAudio.enabled ? '음악과 효과음 끄기' : '음악과 효과음 켜기';
+}
+$('sound').onclick = () => { CourtAudio.toggle(); syncSoundButton(); };
+$('game').addEventListener('click', event => {
+  if (event.target.closest('button') && !event.target.closest('#sound')) CourtAudio.unlock();
+}, {capture:true});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) CourtAudio.sync(false);
+});
+addEventListener('pagehide',persist);
+$('help').onclick=()=>showModal('<h2>♠ 게임 방법</h2><p>수호자를 무작위로 소환해 미로를 지나가는 적을 막으세요.</p><ul><li>🎲 소환: 보석 2개 소모</li><li>✨ 합성: 동일 캐릭터와 등급 3개 → 상위 등급 1개</li><li>⚔ 강화: 모든 수호자 공격력 상승</li><li>🌀 마법: 모든 적 피해 + 4초 둔화</li><li>👑 5웨이브마다 보스 등장</li><li>❤️ 적이 출구에 도달하면 생명 감소</li></ul><p>진행 상황은 이 브라우저에만 자동 저장됩니다. 게임 버튼을 처음 누르면 음악을 재생하며, 상단 음표 버튼으로 끌 수 있습니다.</p>');
 $('codex').onclick=()=>showModal('<h2>📖 원더랜드 도감</h2>'+roster.map((t,i)=>`<div class="entry"><img src="${portraits[i]}" alt=""><div><b>${t.name}</b><small>공격 ${t.dmg} · 사거리 ${t.range} · ${t.skill}</small></div></div>`).join('')+'<p>루이스 캐럴의 1865년 소설에서 모티프를 얻은 독립 제작 게임입니다.</p>');
 function damageMob(m, damage, color, life = .27, radius = 17) {
   if (m.hp <= 0) return;
@@ -279,6 +291,7 @@ function frame(now) {
   last = now;
   update(dt*state.speed);
   draw();
+  CourtAudio.sync(!state.paused && !state.gameover && !$('modal').open && !document.hidden);
   if (now >= nextRefresh) {
     refresh();
     nextRefresh = now + 125;
@@ -286,7 +299,11 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-refresh();
-announce('달빛 장미 정원에 오신 것을 환영합니다');
+syncSoundButton();
+if (state.gameover) end();
+else {
+  refresh();
+  announce('달빛 장미 정원에 오신 것을 환영합니다');
+}
 requestAnimationFrame(frame);
 })();
