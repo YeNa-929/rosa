@@ -172,7 +172,7 @@ body[data-expedition] {
 .recipe .recipe-material { margin-block:2px; }
 .recipe .owned { color:#c8f69c; }
 .recipe .missing { color:#ffd3ac; }
-.recipe:disabled { opacity:.8; }
+.recipe[data-ready="false"] { opacity:.8; }
 
 .title-actions {
   display:flex;
@@ -193,3 +193,34 @@ body[data-expedition] {
 #continueExpedition { border-color:#e6d59b; color:#f8e8af; }
 
 .weapon-grid small { display:block; margin-top:4px; color:#d6ebc7; }
+
+.recruit-result, .fusion-result, .fusion-materials {
+  text-align:center;
+  color:#f3ffe4;
+}
+.recruit-result img, .fusion-result img, .fusion-materials img {
+  display:block;
+  width:min(100%,106px);
+  height:104px;
+  margin:0 auto 8px;
+  object-fit:contain;
+  filter:hue-rotate(var(--portrait-hue,0deg));
+}
+.recruit-result button { min-height:44px; padding:6px 20px; }
+.fusion-materials {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.fusion-materials div, .fusion-result div {
+  padding:8px;
+  border:1px solid #5e7f6b;
+  border-radius:9px;
+  background:#182e27;
+}
+.fusion-materials small, .fusion-result small {
+  display:block;
+  margin-top:4px;
+  color:#d4eabf;
+}
+.fusion-result { margin-bottom:10px; }
