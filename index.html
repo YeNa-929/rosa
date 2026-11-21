@@ -24,8 +24,8 @@
   <script defer src="art.js?v=moonlit-rose-court"></script>
   <script defer src="audio.js?v=battle-score-2"></script>
   <script defer src="expedition.js?v=unit-weapons-1"></script>
-  <script defer src="game.js?v=compact-battle-1"></script>
-  <link rel="stylesheet" href="zunda.css?v=compact-battle-1">
+  <script defer src="game.js?v=live-battle-1"></script>
+  <link rel="stylesheet" href="zunda.css?v=live-battle-1">
 </head>
 <body data-expedition>
   <main id="game">
@@ -33,6 +33,7 @@
       <span class="crest" aria-hidden="true">✦</span>
       <h1>로사 원정대 <small>비영리 크로스오버 디펜스</small></h1>
       <button id="help" aria-label="게임 방법" aria-haspopup="dialog">?</button>
+      <button id="fullscreen" type="button" aria-label="전체 화면" aria-pressed="false">⛶</button>
       <button id="sound" aria-label="음악과 효과음" aria-pressed="false">♪</button>
     </header>
     <div id="saveNotice" role="status" hidden>다른 탭에서 진행 중입니다. <button id="reloadSave" type="button">최신 진행 불러오기</button></div>
@@ -57,7 +58,6 @@
         <div id="aimHint" role="status" hidden></div>
         <div id="announcement" role="status"></div>
         <div id="toast" role="status"></div>
-        <div id="chargeMeter" hidden><b id="chargeLabel"></b><div><i id="chargeFill"></i></div></div>
       </div>
       <p id="waveSupply" class="wave-supply" role="status" aria-atomic="true"></p>
     </div>
@@ -72,7 +72,7 @@
           <button id="summon" class="primary"><span aria-hidden="true">✦</span> 영입 <small>보석 2</small></button>
           <button id="upgrade"><span aria-hidden="true">↟</span> 전체 공격 강화 <small id="upgradeCost">골드 30</small></button>
         </div>
-        <div class="battle-orders"><button id="tactics" type="button" aria-pressed="false">전술 지령 <small id="tacticsCount">2 / 2</small></button><button id="interrupt" type="button" disabled>돌진 저지 <small id="interruptStatus">돌진 예고에 사용</small></button></div>
+        <div class="battle-orders"><button id="tactics" type="button" aria-pressed="false">전술 지령 <small id="tacticsCount">2 / 2</small></button></div>
         <div class="subactions">
           <button id="speed">1배속</button>
           <button id="pause" aria-pressed="false">일시정지</button>
