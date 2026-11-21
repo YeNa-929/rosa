@@ -183,3 +183,6 @@ dialog::backdrop { background: #100b1ad9; }
   #cards { min-height: 42px; }
   .actions button { min-height: 45px; }
 }
+
+.mode-link { padding-top:6px; text-align:center; }
+.mode-link a { display:inline-flex; align-items:center; min-height:44px; color:#e3f9b7; font-size:12px; font-weight:750; }
