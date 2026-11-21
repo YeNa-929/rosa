@@ -260,9 +260,10 @@ function showChoices() {
     const title = draft ? roster[i].name : contract ? sectorRules[i].title : supplies[i][0];
     const detail = draft ? '기본형 · '+roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
     const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
-    return `<button data-choice="${i}">${art}<b>${title}</b><small>${detail}${draft ? ' · 전용 무기 '+roster[i].gear.name : ''}</small></button>`;
+    return `<button data-choice="${i}" ${draft ? `style="--starter-accent:${roster[i].color}"` : ''}>${art}<b>${title}</b><small>${detail}${draft ? '<span class="starter-weapon">전용 무기 '+roster[i].gear.name+'</span>' : ''}</small></button>`;
   });
   showModal(`<h2>${draft?'첫 동료를 선택하세요':contract?'다음 구역의 작전을 고르세요':'원정 보급품을 고르세요'}</h2><p>${draft?'네 명 중 한 명과 원정을 시작하세요. 각 동료의 고유 능력은 상위 조합 후에도 이어집니다.':contract?'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
+  $('modal').classList.toggle('starter-screen',draft);
   $('close').hidden=true;
   const choices=$('modalBody').querySelectorAll('[data-choice]');
   for(const button of choices) button.onclick=()=>{
@@ -287,6 +288,7 @@ function showChoices() {
     state.offers=[];
     state.spawned=0;
     state.spawnTimer=.9;
+    $('modal').classList.remove('starter-screen');
     $('close').hidden=false;
     closeModal();
     refresh();
@@ -450,6 +452,7 @@ function resetRun() {
 let modalBack=null;
 function showModal(html) {
   modalBack=null;
+  $('modal').classList.remove('starter-screen');
   $('close').hidden = false;
   $('modalBody').innerHTML = html;
   $('modalBody').querySelector('h2').id = 'modalTitle';
@@ -1246,6 +1249,7 @@ const release = {
     '네 주인공은 같은 모습의 인간형으로 진화하고, 보급소에서 전용 무기를 강화할 수 있습니다.',
     '네 주인공의 타이틀 일러스트가 화면 전체를 채웁니다.',
     '접속 시 업데이트 안내 뒤에 전투 화면이 보이지 않습니다.',
+    '첫 동료 네 명은 전체 화면의 네 칸에서 선택합니다.',
     '영입 결과와 조합 재료를 캐릭터 이미지로 확인할 수 있습니다.',
     '한글 제목과 전투 UI의 글꼴을 바꿔 작은 화면에서 읽기 쉽게 다듬었습니다.'
   ]
