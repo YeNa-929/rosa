@@ -243,57 +243,34 @@ function unitPos(i) {
           y: H * [.286,.382,.624][row]};
 }
 
-const supplies = [
-  ['훈련 일지','공격력 +18%',()=>{state.power+=.18}],
-  ['응원 배지','공격 속도 +15%',()=>{state.tempo+=.15}],
-  ['간식 꾸러미','생명 6 회복 · 보석 2개',()=>{state.life=Math.min(25,state.life+6);state.gems+=2}],
-  ['보급 상자','골드 45 · 보석 4개',()=>{state.gold+=45;state.gems+=4}],
-  ['정예 도전','다음 적 체력 +40% · 통과하면 보석 7개 추가',()=>{state.elite=true}],
-  ['동료 지원','동료 한 명 영입 · 만석이면 보석 4개',()=>{
-    if(state.units.length<storageLimit) recruit(recruitPool[Math.floor(Math.random()*recruitPool.length)].type);
-    else state.gems+=4;
-  }]
-];
 function recruit(type) {
   state.units.push({id:uid++,type,tier:1,reserve:expedition&&deployedCount()>=capacity(),cool:0,born:visualTime});
 }
 const choosing = () => state.phase==='draft'||state.phase==='reward';
 function showChoices() {
   const draft = state.phase==='draft';
-  const contract=sectorOffer();
-  const options = draft ? ZundaExpedition.rookies.map(character=>character.type) : contract ? ['standard','rush','armor'] : state.offers;
-  const buttons = options.map(i => {
-    const title = draft ? roster[i].name : contract ? sectorRules[i].title : supplies[i][0];
-    const detail = draft ? '기본형 · '+roster[i].skill : contract ? sectorRules[i].detail : supplies[i][1];
-    const art = draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
+  const options=draft ? ZundaExpedition.rookies.map(character=>character.type) : ['standard','rush','armor'];
+  const buttons=options.map(i=>{
+    const title=draft ? roster[i].name : sectorRules[i].title;
+    const detail=draft ? '기본형 · '+roster[i].skill : sectorRules[i].detail;
+    const art=draft ? `<img referrerpolicy="no-referrer" src="${portraits[i]}" alt="">` : '';
     return `<button data-choice="${i}" ${draft ? `style="--starter-accent:${roster[i].color}"` : ''}>${art}<b>${title}</b><small>${detail}${draft ? '<span class="starter-weapon">전용 무기 '+roster[i].gear.name+'</span>' : ''}</small></button>`;
   });
-  showModal(`<h2>${draft?'첫 동료를 선택하세요':contract?'다음 구역의 작전을 고르세요':'원정 보급품을 고르세요'}</h2><p>${draft?'네 명 중 한 명과 원정을 시작하세요. 각 동료의 고유 능력은 상위 조합 후에도 이어집니다.':contract?'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.':state.wave+'웨이브 완료 · 다음 전투로 가져갈 보급품을 하나 고르세요.'}</p> <div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
+  showModal(`<h2>${draft?'첫 동료를 선택하세요':'다음 구역의 작전을 고르세요'}</h2><p>${draft?'네 명 중 한 명과 원정을 시작하세요. 각 동료의 고유 능력은 상위 조합 후에도 이어집니다.':'선택한 조건과 보너스가 다음 네 웨이브에 적용됩니다.'}</p><div class="choices ${draft?'starter-choices':''}">${buttons.join('')}</div>`);
   $('modal').classList.toggle('starter-screen',draft);
   $('close').hidden=true;
   const choices=$('modalBody').querySelectorAll('[data-choice]');
   for(const button of choices) button.onclick=()=>{
     if(!choosing()) return;
-    const i=contract ? button.dataset.choice : Number(button.dataset.choice);
-    if(draft) recruit(i);
-    else {
-      const previous=ZundaExpedition.region(state.wave);
-      if(contract) {
-        state.contract=i;
-        if(i==='standard') state.life=Math.min(25,state.life+4);
-      } else supplies[i][2]();
-      state.wave++;
-      state.shopCount=0;
-      state.tactics=2;
-      state.shield=0;
-      command=null;
-      slowField=null;
-      if(previous!==ZundaExpedition.region(state.wave) || state.wave===17) resize();
+    if(draft) {
+      recruit(Number(button.dataset.choice));
+      state.phase='wave';
+      state.spawnTimer=.9;
+    } else {
+      state.contract=button.dataset.choice;
+      if(state.contract==='standard') state.life=Math.min(25,state.life+4);
+      advanceExpeditionWave();
     }
-    state.phase='wave';
-    state.offers=[];
-    state.spawned=0;
-    state.spawnTimer=.9;
     $('modal').classList.remove('starter-screen');
     $('close').hidden=false;
     closeModal();
@@ -308,7 +285,31 @@ const sectorRules={
   rush:{title:'가속 전선',detail:'적 이동 +18% · 매 웨이브 보석 +4',speed:1.18,armor:0,gems:4,gold:0},
   armor:{title:'철갑 전선',detail:'적 장갑 +12%p · 매 웨이브 골드 +55',speed:1,armor:.12,gems:0,gold:55}
 };
-const sectorOffer=()=>expedition && state.phase==='reward' && state.wave%4===0;
+const sectorOffer=()=>expedition && state.phase==='reward' && state.wave%bossInterval===0;
+function advanceExpeditionWave() {
+  const previous=ZundaExpedition.region(state.wave);
+  state.wave++;
+  state.shopCount=0;
+  state.tactics=2;
+  state.shield=0;
+  state.phase='wave';
+  state.offers=[];
+  state.spawned=0;
+  state.spawnTimer=.9;
+  command=null;
+  slowField=null;
+  if(previous!==ZundaExpedition.region(state.wave) || state.wave===17) resize();
+}
+function continueWithSupplies() {
+  const wave=state.wave;
+  state.gems++;
+  state.gold+=10;
+  state.life=Math.min(25,state.life+2);
+  state.power+=.07;
+  state.tempo+=.05;
+  advanceExpeditionWave();
+  announce(wave+'웨이브 완료 · 자동 보급 지급');
+}
 function clearWave() {
   const bonus=expedition ? sectorRules[state.contract] : null;
   state.gems+=5+(state.elite?7:0)+(bonus?.gems??0);
@@ -322,11 +323,11 @@ function clearWave() {
     state.cleared=true;
     end();
     return;
-  } else {
+  } else if(state.wave%bossInterval===0) {
     state.phase='reward';
-    const pool=supplies.map((_,i)=>i);
-    state.offers=Array.from({length:3},()=>pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
     showChoices();
+  } else {
+    continueWithSupplies();
   }
   persist();
 }
@@ -713,6 +714,7 @@ for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)contin
 for(const b of bullets){if(b.target.hp<=0){b.dead=true;continue}const dx=b.target.x-b.x,dy=b.target.y-b.y,d=Math.hypot(dx,dy);if(d<=Math.max(13,b.speed*dt)){hit(b.target,b.damage,b);b.dead=true}else{const step=Math.min(d,b.speed*dt);b.x+=dx/d*step;b.y+=dy/d*step}}
 bullets=bullets.filter(b=>!b.dead);mobs=mobs.filter(m=>m.hp>0);particles.forEach(p=>p.life-=dt);particles=particles.filter(p=>p.life>0);
 saveTimer+=dt;if(saveTimer>12){saveTimer=0;persist()}}
+let guardianBounds=[];
 function drawGuardians(motion) {
   const silhouettes=[];
   state.units.forEach((u, i) => {
@@ -774,7 +776,7 @@ function drawGuardians(motion) {
       if(strike && Math.cos(u.aim)<0) g.scale(-1,1);
       if(!strike && motion && shot) g.rotate(Math.cos(u.aim)*shot*.14);
       g.drawImage(image,-width/2,-height,width,height);
-      silhouettes.push({left:spriteX-width/2,right:spriteX+width/2,bottom:spriteY+size*.42,height});
+      silhouettes.push({id:u.id,left:spriteX-width/2,right:spriteX+width/2,bottom:spriteY+size*.42,height});
       g.restore();
       g.filter='none';
     } else {
@@ -914,8 +916,8 @@ function draw() {
     g.arc(slowField.x,slowField.y,81,0,Math.PI*2);
     g.fillStyle='#80aaff33';g.fill();g.strokeStyle='#95d7ffc0';g.lineWidth=2;g.stroke();
   }
-  const allySilhouettes=drawGuardians(motion);
-  drawEnemies(motion,allySilhouettes);
+  guardianBounds=drawGuardians(motion);
+  drawEnemies(motion,guardianBounds);
   drawEffects(motion);
   if(motion && fieldImpact>0) {
     g.fillStyle='rgba(255,202,155,'+(fieldImpact*.48)+')';
@@ -942,7 +944,7 @@ function frame(now) {
 function renderFormation() {
   $('reserveTab').textContent=reserveView?'출전 보기':'대기 '+(state.units.length-deployedCount());
   $('reserveTab').setAttribute('aria-pressed',reserveView);
-  $('cards').innerHTML=state.units.filter(u=>!!u.reserve===reserveView).map(u=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" referrerpolicy="no-referrer" src="${portraits[u.type]}" style="--portrait-hue:${roster[u.type].hue??0}deg"><span>${roster[u.type].name}</span><strong>${u.reserve?'대기':(u.slot+1)+'번'} · ★${u.tier}</strong></button>`).join('')
+  $('cards').innerHTML=state.units.filter(u=>!!u.reserve===reserveView).map(u=>`<button class="unitcard formation-card" data-unit="${u.id}" aria-pressed="${u.id===selectedUnit}" style="--unit:${roster[u.type].color}" ${state.gameover?'disabled':''}><img alt="" draggable="false" referrerpolicy="no-referrer" src="${portraits[u.type]}" style="--portrait-hue:${roster[u.type].hue??0}deg"><span>${roster[u.type].name}</span><strong>${u.reserve?'대기':(u.slot+1)+'번'} · ★${u.tier}</strong></button>`).join('')
     || '<div class="unitcard empty">'+(reserveView?'대기 중인 동료가 없습니다':'보석 2개로 동료를 영입하세요')+'</div>';
 }
 function renderPads() {
@@ -958,16 +960,16 @@ function renderPads() {
   layer.innerHTML=deploymentPads.map(({x,y},slot)=>{
     const unit=occupied.get(slot);
     const label=unit ? (unit.id===selectedUnit?'현재 위치':roster[unit.type].name+'과 위치 교체') : (slot+1)+'번 빈 위치에 배치';
-    return `<button type="button" class="deploy-pad ${unit?'occupied':''}" data-pad="${slot}" aria-label="${label}" aria-pressed="${unit?.id===selectedUnit}" style="left:${x*100}%;top:${y*100}%">${unit?'◆':'+'}</button>`;
+    return `<button type="button" class="deploy-pad ${unit?'occupied':''}" data-pad="${slot}" ${unit?`data-board-unit="${unit.id}"`:''} aria-label="${label}" aria-pressed="${unit?.id===selectedUnit}" style="left:${x*100}%;top:${y*100}%">${unit?'◆':'+'}</button>`;
   }).join('');
 }
-function moveFormation(slot) {
-  const unit=state.units.find(item=>item.id===selectedUnit);
-  if(!unit || !deploymentPads[slot] || state.gameover || choosing() || $('modal').open) return;
+function moveFormation(slot,id=selectedUnit) {
+  const unit=state.units.find(item=>item.id===id);
+  if(!unit || !deploymentPads[slot] || state.gameover || saveConflict || choosing() || $('modal').open) return false;
   const other=state.units.find(item=>item.slot===slot && item!==unit);
   if(unit.reserve && !other && deployedCount()>=capacity()) {
     toast('출전 한도에 도달했습니다. 배치된 동료와 교체하세요');
-    return;
+    return false;
   }
   if(!unit.reserve) unit.moveFrom={...unitPos(state.units.indexOf(unit)),time:visualTime};
   if(other) {
@@ -982,22 +984,112 @@ function moveFormation(slot) {
   toast(other?'동료 위치를 교체했습니다':'빈 위치에 동료를 배치했습니다');
   refresh();
   persist();
+  return true;
 }
-function selectFormation(id) {
-  const unit=state.units.find(item=>item.id===id);
-  if(!unit || state.gameover) return;
-  command=null;
-  if(selectedUnit!==null && selectedUnit!==id && !unit.reserve) {
-    moveFormation(unit.slot);
-    return;
+function guardianAt(clientX,clientY) {
+  const rect=canvas.getBoundingClientRect();
+  const x=clientX-rect.left, y=clientY-rect.top;
+  for(let i=guardianBounds.length-1;i>=0;i--) {
+    const {id,left,right,bottom,height}=guardianBounds[i];
+    if(x>=left-3 && x<=right+3 && y>=bottom-height-3 && y<=bottom+5) return id;
   }
-  selectedUnit=selectedUnit===id ? null : id;
-  if(selectedUnit!==null) toast('전장의 + 또는 다른 동료를 선택하세요');
-  refresh();
+  return null;
 }
-function ingredients(recipe) {
-  return [recipe.first,recipe.second].map(type=>
-    state.units.reduce((best,u)=>u.type===type && (!best || u.tier<best.tier) ? u : best,null));
+function openUnitRecipes(id) {
+  if(state.gameover || saveConflict || choosing() || !state.units.some(unit=>unit.id===id)) return;
+  command=null;
+  updateCommand();
+  showUnitRecipes(id);
+}
+function installFormationDrag() {
+  const stage=$('stage'), cards=$('cards'), layer=$('placement');
+  const ghost=document.createElement('img');
+  ghost.className='formation-drag-ghost';
+  ghost.alt='';
+  ghost.hidden=true;
+  document.body.append(ghost);
+  let drag=null, suppressClick=false;
+
+  function start(event) {
+    suppressClick=false;
+    if(drag || !event.isPrimary || event.button!==0 || state.gameover || saveConflict || choosing() || $('modal').open) return;
+    const surface=event.currentTarget;
+    if(surface===stage && command) return;
+    const card=event.target.closest('[data-unit], [data-board-unit]');
+    const id=card ? Number(card.dataset.unit ?? card.dataset.boardUnit) :
+      event.target===canvas ? guardianAt(event.clientX,event.clientY) : null;
+    if(id===null || !state.units.some(unit=>unit.id===id)) return;
+    drag={id,pointer:event.pointerId,x:event.clientX,y:event.clientY,surface,active:false,previous:selectedUnit};
+  }
+
+  function padAt(clientX,clientY) {
+    const rect=canvas.getBoundingClientRect();
+    if(clientX<rect.left || clientX>rect.right || clientY<rect.top || clientY>rect.bottom) return null;
+    let slot=null, nearest=26;
+    for(const [index,pad] of deploymentPads.entries()) {
+      const distance=Math.hypot(clientX-(rect.left+pad.x*rect.width),clientY-(rect.top+pad.y*rect.height));
+      if(distance<nearest) {nearest=distance;slot=index;}
+    }
+    return slot;
+  }
+
+  function move(event) {
+    if(drag?.pointer!==event.pointerId) return;
+    if(!drag.active) {
+      if(Math.hypot(event.clientX-drag.x,event.clientY-drag.y)<8) return;
+      const unit=state.units.find(unit=>unit.id===drag.id);
+      if(!unit || state.gameover || $('modal').open) {drag=null;return;}
+      drag.active=true;
+      suppressClick=true;
+      drag.surface.setPointerCapture(event.pointerId);
+      command=null;
+      selectedUnit=unit.id;
+      ghost.src=portraits[unit.type];
+      ghost.style.setProperty('--portrait-hue',(roster[unit.type].hue??0)+'deg');
+      ghost.hidden=false;
+      layer.classList.add('dragging');
+      refresh();
+    }
+    ghost.style.left=event.clientX+'px';
+    ghost.style.top=event.clientY+'px';
+    layer.querySelector('.drop-target')?.classList.remove('drop-target');
+    const slot=padAt(event.clientX,event.clientY);
+    if(slot!==null) layer.querySelector('[data-pad="'+slot+'"]')?.classList.add('drop-target');
+  }
+
+  function finish(event,canceled=false) {
+    if(!drag || (event && drag.pointer!==event.pointerId)) return;
+    const current=drag;
+    drag=null;
+    if(!current.active) return;
+    ghost.hidden=true;
+    layer.classList.remove('dragging');
+    layer.querySelector('.drop-target')?.classList.remove('drop-target');
+    const slot=canceled ? null : padAt(event.clientX,event.clientY);
+    const unit=state.units.find(unit=>unit.id===current.id);
+    if(slot!==null && (unit?.reserve || unit?.slot!==slot) && moveFormation(slot,current.id)) return;
+    selectedUnit=current.previous;
+    refresh();
+  }
+
+  for(const surface of [stage,cards]) {
+    surface.addEventListener('pointerdown',start);
+    surface.addEventListener('click',event=>{
+      if(!suppressClick || !event.detail) return;
+      suppressClick=false;
+      event.stopImmediatePropagation();
+    },true);
+  }
+  window.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',event=>finish(event));
+  window.addEventListener('pointercancel',event=>finish(event,true));
+  window.addEventListener('blur',()=>finish(null,true));
+}
+function ingredients(recipe,unitId=null) {
+  return [recipe.first,recipe.second].map(type=>{
+    const chosen=state.units.find(unit=>unit.id===unitId && unit.type===type);
+    return chosen ?? state.units.reduce((best,u)=>u.type===type && (!best || u.tier<best.tier) ? u : best,null);
+  });
 }
 const fusionKindLabel=kind=>kind==='human' ? '인간형' : '몬스터';
 function canUseRecipe(recipe) {
@@ -1005,15 +1097,16 @@ function canUseRecipe(recipe) {
   const kind=ZundaExpedition.fusionKind(recipe.type);
   return ZundaExpedition.fusionKind(recipe.first)===kind && ZundaExpedition.fusionKind(recipe.second)===kind;
 }
-function fuse(index,{filter,search,species}) {
+function fuse(index,{filter='all',search='',species='all',unitId=null}={}) {
   const recipe=ZundaExpedition.fusionRecipes[index];
   if(!canUseRecipe(recipe) || state.gameover) return;
-  const [first,second]=ingredients(recipe);
+  const [first,second]=ingredients(recipe,unitId);
   if(!first || !second) return;
   const anchor=first.reserve && !second.reserve ? second : first;
   const consumed=anchor===first ? second : first;
   const slot=state.units.indexOf(anchor);
-  state.units[slot]={id:uid++,type:recipe.type,slot:anchor.slot,reserve:anchor.reserve,tier:Math.min(first.tier,second.tier),cool:0,born:visualTime};
+  const evolvedId=uid++;
+  state.units[slot]={id:evolvedId,type:recipe.type,slot:anchor.slot,reserve:anchor.reserve,tier:Math.min(first.tier,second.tier),cool:0,born:visualTime};
   state.units.splice(state.units.indexOf(consumed),1);
   selectedUnit=null;
   const result=recipe.name+' 탄생!';
@@ -1021,7 +1114,8 @@ function fuse(index,{filter,search,species}) {
   refresh();
   persist();
   if(!saveConflict) {
-    showRecipes({filter,search,species,result});
+    if(unitId===null) showRecipes({filter,search,species,result});
+    else showUnitRecipes(evolvedId,result);
     $('recipeStatus').focus();
   }
 }
@@ -1057,12 +1151,46 @@ function showRecipes({filter='all',search='',species='all',result=''}={}) {
     }
     const empty=$('recipeEmpty');
     empty.hidden=shown>0;
-    empty.textContent=query ? '검색 결과가 없습니다.' : '이 조건에 맞는 조합이 없습니다. 전체 조합을 확인해 보세요.';
+    empty.textContent=query ? '검색 결과가 없습니다.' : '이 조건에 맞는 조합이 없습니다.';
   };
   $('recipeFilter').onchange=updateFilter;
   $('recipeSpecies').onchange=updateFilter;
   $('recipeSearch').oninput=updateFilter;
   updateFilter();
+}
+function fusionPortrait(type,status) {
+  return `<div><img src="${portraits[type]}" alt="" style="--portrait-hue:${roster[type].hue??0}deg"><strong>${roster[type].name}</strong><small>${status}</small></div>`;
+}
+function showUnitRecipes(unitId,result='') {
+  const picked=state.units.find(unit=>unit.id===unitId);
+  if(!picked) return;
+  const rows=ZundaExpedition.fusionRecipes.flatMap((recipe,index)=>{
+    if(recipe.first!==picked.type && recipe.second!==picked.type) return [];
+    const owned=ingredients(recipe,unitId);
+    return [{recipe,index,owned,ready:owned.every(Boolean)}];
+  }).sort((a,b)=>Number(b.ready)-Number(a.ready));
+  const cards=rows.map(({recipe,index,owned,ready})=>{
+    const status=unit=>unit ? (unit.id===unitId?'선택 · 있음':'있음')+' · ★'+unit.tier : '없음';
+    return `<article class="unit-fusion-card">
+      <div class="unit-fusion-pictures">
+        ${fusionPortrait(recipe.first,status(owned[0]))}
+        ${fusionPortrait(recipe.second,status(owned[1]))}
+        ${fusionPortrait(recipe.type,ready?'결과 · ★'+Math.min(...owned.map(unit=>unit.tier)):'조합 결과')}
+      </div>
+      <button type="button" data-unit-fuse="${index}" data-fusion-unit="${unitId}" ${ready?'':'disabled'}>조합하기</button>
+    </article>`;
+  }).join('');
+  showModal(`<h2>${roster[picked.type].name} 조합·진화</h2><p id="recipeStatus" role="status" tabindex="-1">${result || (rows.length?'이 동료를 재료로 쓰는 조합입니다.':'이 동료의 추가 조합은 없습니다.')}</p>
+    <div class="unit-fusion-actions"><button id="pickPlacement" type="button">배치 칸 선택</button><button id="openAllRecipes" type="button">전체 조합표</button></div>
+    <div class="unit-fusion-list">${cards}</div>`);
+  $('openAllRecipes').onclick=()=>showRecipes();
+  $('pickPlacement').onclick=()=>{
+    closeModal();
+    selectedUnit=unitId;
+    refresh();
+    $('placement').querySelector('[data-pad]')?.focus();
+  };
+  $('modal').scrollTop=0;
 }
 function showFusionPreview(index) {
   const recipe=ZundaExpedition.fusionRecipes[index];
@@ -1071,10 +1199,9 @@ function showFusionPreview(index) {
   const owned=ingredients(recipe);
   const ready=owned.every(Boolean);
   const resultTier=ready ? Math.min(...owned.map(unit=>unit.tier)) : null;
-  const portrait=(type,status)=>`<div><img src="${portraits[type]}" alt="" style="--portrait-hue:${roster[type].hue??0}deg"><strong>${roster[type].name}</strong><small>${status}</small></div>`;
   const materials=[recipe.first,recipe.second].map((type,i)=>
-    portrait(type,owned[i] ? '사용할 재료 · ★'+owned[i].tier : '아직 보유하지 않음'));
-  showModal(`<h2>조합 미리보기</h2><p>${fusionKindLabel(ZundaExpedition.fusionKind(recipe.type))} 재료 두 명</p><div class="fusion-materials">${materials.join('')}</div><p>조합 결과</p><div class="fusion-result">${portrait(recipe.type,resultTier ? '★'+resultTier : '재료를 모으면 조합 가능')}</div><div class="title-menu"><button id="confirmFusion" ${ready?'':'disabled'}>조합 확정</button><button id="backToRecipes">조합표로 돌아가기</button></div>`);
+    fusionPortrait(type,owned[i] ? '사용할 재료 · ★'+owned[i].tier : '아직 보유하지 않음'));
+  showModal(`<h2>조합 미리보기</h2><p>${fusionKindLabel(ZundaExpedition.fusionKind(recipe.type))} 재료 두 명</p><div class="fusion-materials">${materials.join('')}</div><p>조합 결과</p><div class="fusion-result">${fusionPortrait(recipe.type,resultTier ? '★'+resultTier : '재료를 모으면 조합 가능')}</div><div class="title-menu"><button id="confirmFusion" ${ready?'':'disabled'}>조합 확정</button><button id="backToRecipes">조합표로 돌아가기</button></div>`);
   modalBack=()=>showRecipes(context);
   $('backToRecipes').onclick=modalBack;
   $('confirmFusion').onclick=()=>fuse(index,context);
@@ -1190,7 +1317,14 @@ if(expedition) {
   $('recon').onclick=showRecon;
   $('reloadSave').onclick=()=>location.reload();
   $('tactics').onclick=openCommands;
-  canvas.addEventListener('click',fireCommand);
+  installFormationDrag();
+  canvas.addEventListener('click',event=>{
+    if(command) fireCommand(event);
+    else {
+      const id=guardianAt(event.clientX,event.clientY);
+      if(id!==null) openUnitRecipes(id);
+    }
+  });
   $('reserveTab').onclick=()=>{reserveView=!reserveView;selectedUnit=null;refresh();};
   $('bench').onclick=()=>{
     const selected=state.units.find(unit=>unit.id===selectedUnit);
@@ -1223,6 +1357,8 @@ if(expedition) {
   $('modalBody').addEventListener('click',event=>{
     const button=event.target.closest('[data-recipe]');
     if(button) showFusionPreview(Number(button.dataset.recipe));
+    const fusion=event.target.closest('[data-unit-fuse]');
+    if(fusion) fuse(Number(fusion.dataset.unitFuse),{unitId:Number(fusion.dataset.fusionUnit)});
     const order=event.target.closest('[data-order]');
     if(order) selectCommand(order.dataset.order);
     const item=event.target.closest('[data-market]');
@@ -1230,15 +1366,19 @@ if(expedition) {
   });
   $('cards').addEventListener('click',event=>{
     const card=event.target.closest('[data-unit]');
-    if(card) selectFormation(Number(card.dataset.unit));
+    if(card) openUnitRecipes(Number(card.dataset.unit));
   });
   $('focus').onclick=()=>{state.targetPriority=({lead:'support',support:'boss',boss:'lead'})[state.targetPriority];state.bossFocus=state.targetPriority==='boss';syncFocus();persist();};
-  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 전술 지령은 웨이브마다 포격·결빙·방어막에 쓸 포인트 2개를 줍니다. 회복병이 섞이면 회복병 우선을 켜세요. 동료 카드를 고르고 전장에 나타나는 +를 누르면 빈 위치로 이동합니다. 다른 동료를 선택하면 서로 자리를 바꿉니다. 4웨이브마다 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
+  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 전술 지령은 웨이브마다 포격·결빙·방어막에 쓸 포인트 2개를 줍니다. 회복병이 섞이면 회복병 우선을 켜세요. 전장의 동료나 카드를 드래그해 배치 칸으로 옮기세요. 동료가 있는 칸에 놓으면 자리를 교체합니다. 동료를 누르면 가능한 조합·진화를 확인할 수 있습니다. 4웨이브마다 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
   syncFocus();
 }
 function enterGame() {
   if(state.gameover) end();
-  else if(choosing()) { refresh(); showChoices(); }
+  else if(expedition && state.phase==='reward' && !sectorOffer()) {
+    continueWithSupplies();
+    refresh();
+    persist();
+  } else if(choosing()) { refresh(); showChoices(); }
   else {
     refresh();
     announce(expedition?'로사 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
@@ -1262,18 +1402,17 @@ function showTitleScreen() {
 
 // Change the release ID and notes together when publishing a player-facing update.
 const release = {
-  id:'2026-11-21-fusion-lineages',
-  title:'인간형과 몬스터 조합',
+  id:'2026-11-21-formation-drag',
+  title:'전장 드래그 배치와 동료 진화 메뉴',
   notes:[
-    '인간형끼리는 인간형으로, 몬스터끼리는 몬스터로 조합됩니다.',
-    '방패병 마렌, 연금술사 베른, 검객 리아, 사막 궁수 자이드를 영입할 수 있습니다. 새 인간형 상위 조합도 네 가지 추가했습니다.',
-    '일부 비슷한 용과 몬스터는 신규 영입·조합에서 제외했습니다. 이미 영입한 동료는 계속 사용할 수 있습니다.',
-    '로사, 프패, 소설가, 빰의 기본형에 전용 공격 자세를 추가했습니다.',
-    '자동 소환 결과는 전투를 멈추지 않고 화면 하단에 표시합니다.'
+    '전장 캐릭터 또는 동료 카드를 드래그해 원하는 배치 칸에 놓습니다. 동료가 있는 칸에 놓으면 자리를 바꿉니다.',
+    '캐릭터를 탭하면 조합 재료 이미지와 보유 여부를 바로 확인하고 조합할 수 있습니다.',
+    '일반 웨이브는 자동 보급을 받고 바로 이어집니다. 보스 격파 뒤에만 다음 구역의 작전을 선택합니다.'
   ]
 };
 const releaseHistory = [
   release,
+  {title:'인간형과 몬스터 조합',notes:['같은 유형끼리 조합하도록 정리하고 새 인간형 동료를 추가했습니다. 스타팅 동료 공격 자세와 자동 소환 결과 표시도 추가됐습니다.']},
   {title:'주인공 진화와 전용 무기',notes:['네 주인공의 인간형 중간 진화와 전용 무기, 전체 화면 타이틀, 영입·조합 미리보기가 추가됐습니다.']},
   {title:'네 명의 시작 동료와 새 조합표',notes:['첫 동료 네 명의 고유 공격과 재료 보유 여부를 보여주는 조합표가 추가됐습니다. 타이틀에 업데이트 내역과 저장된 원정 이어하기를 추가했습니다.']},
   {title:'타이틀 화면과 기본형 동료',notes:['타이틀에서 게임 시작하기를 눌러 원정을 시작합니다. 로사, 프패, 소설가, 빰의 기본형과 상위 조합 경로가 추가됐습니다.']},
