@@ -1107,11 +1107,48 @@ if(expedition) {
   $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 전술 지령은 웨이브마다 포격·결빙·방어막에 쓸 포인트 2개를 줍니다. 회복병이 섞이면 회복병 우선을 켜세요. 동료 카드를 고르고 전장에 나타나는 +를 누르면 빈 위치로 이동합니다. 다른 동료를 선택하면 서로 자리를 바꿉니다. 4웨이브마다 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
   syncFocus();
 }
-if (state.gameover) end();
-else if (choosing()) { refresh(); showChoices(); }
-else {
-  refresh();
-  announce(expedition?'로사 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
+function enterGame() {
+  if(state.gameover) end();
+  else if(choosing()) { refresh(); showChoices(); }
+  else {
+    refresh();
+    announce(expedition?'로사 원정대 출발!':'달빛 장미 정원에 오신 것을 환영합니다');
+  }
 }
+
+// Change the release ID and notes together when publishing a player-facing update.
+const release = {
+  id:'2026-11-21-hero-fusions',
+  title:'새 동료와 검붉은 군단',
+  notes:[
+    '상위 조합 동료 새벽검 로사, 서리술사 프패, 뇌전궁 소설가, 월식검 빰을 만나보세요.',
+    '아군 용 네 마리가 새 일러스트를 얻었고, 적군에는 인간형 추적병·돌격병·방패병이 합류했습니다.',
+    '아군과 겹치는 적은 잠시 반투명해집니다. 전투 음악 3곡과 보스 경고음도 추가됐습니다.'
+  ]
+};
+const releaseKey='rosa-expedition-seen-release';
+let seenRelease;
+try { seenRelease=localStorage.getItem(releaseKey); } catch {}
+
+if(expedition && seenRelease!==release.id) {
+  refresh();
+  showModal('<h2>로사 원정대 업데이트</h2><p><strong>'+release.title+'</strong></p><ul>'+
+    release.notes.map(note=>'<li>'+note+'</li>').join('')+
+    '</ul><button id="enterAfterUpdate">원정 시작</button>');
+  $('close').hidden=true;
+  const finishRelease=()=>{
+    try { localStorage.setItem(releaseKey,release.id); } catch {}
+    $('modal').removeEventListener('cancel',cancelRelease);
+    $('modal').close();
+    enterGame();
+  };
+  const cancelRelease=event=>{
+    event.preventDefault();
+    finishRelease();
+  };
+  $('modal').addEventListener('cancel',cancelRelease);
+  $('enterAfterUpdate').onclick=finishRelease;
+  $('enterAfterUpdate').focus();
+} else enterGame();
 requestAnimationFrame(frame);
 })();
