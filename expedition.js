@@ -3,70 +3,70 @@
 
 const ZundaExpedition = (() => {
   const recipes = [
-    [0,1,'잎새 랩터','frost','#88f4ae',30,1.60,140],
-    [0,2,'홍옥 스라소니','execute','#ff9c78',42,1.25,143],
-    [0,3,'자전 나비','chain','#deb9ff',35,1.33,150],
-    [0,4,'달그늘 여우','burst','#ffd0bb',44,1.12,140],
-    [0,5,'유성 족제비','pierce','#95ddff',36,1.45,153],
-    [1,2,'가시 사슴','pierce','#e5ee9c',50,1.00,155],
-    [1,3,'난초 마도묘','burst','#eaa7f6',44,1.10,151],
-    [1,4,'비취 백로','chain','#a0eddc',39,1.34,157],
-    [1,5,'청록 기갑수','frost','#8cebf0',38,1.28,165],
-    [2,3,'황혼 살쾡이','execute','#ffadbf',52,.98,149],
-    [2,4,'여명 사자','burst','#ffc17c',54,.94,149],
-    [2,5,'섬광 매','pierce','#a8c4ff',53,.96,178],
-    [3,4,'빙화 정령','frost','#c4d9ff',40,1.27,154],
-    [3,5,'뇌운 해파리','chain','#c0b1ff',48,1.08,176],
-    [4,5,'백야 용린','burst','#f5e9ae',59,.92,163],
+    [118,119,'잎새 랩터','frost','#88f4ae',30,1.60,140],
+    [118,122,'홍옥 스라소니','execute','#ff9c78',42,1.25,143],
+    [118,123,'자전 나비','chain','#deb9ff',35,1.33,150],
+    [118,114,'달그늘 여우','burst','#ffd0bb',44,1.12,140],
+    [118,120,'유성 족제비','pierce','#95ddff',36,1.45,153],
+    [119,122,'가시 사슴','pierce','#e5ee9c',50,1.00,155],
+    [119,123,'난초 마도묘','burst','#eaa7f6',44,1.10,151],
+    [119,114,'비취 백로','chain','#a0eddc',39,1.34,157],
+    [119,120,'청록 기갑수','frost','#8cebf0',38,1.28,165],
+    [122,123,'황혼 살쾡이','execute','#ffadbf',52,.98,149],
+    [122,114,'여명 사자','burst','#ffc17c',54,.94,149],
+    [122,120,'섬광 매','pierce','#a8c4ff',53,.96,178],
+    [123,114,'빙화 정령','frost','#c4d9ff',40,1.27,154],
+    [123,120,'뇌운 해파리','chain','#c0b1ff',48,1.08,176],
+    [114,120,'백야 용린','burst','#f5e9ae',59,.92,163],
     [6,16,'새벽의 수호룡','burst','#ffe299',125,1.05,174],
     [7,17,'노을의 불사조','execute','#ff997d',132,1.00,180],
     [8,19,'폭풍의 천공수','chain','#d1bdff',118,1.16,184],
     [9,18,'극지의 설월호','frost','#bfecff',115,1.22,176],
-    [10,20,'혜성의 성기사','pierce','#d0ebff',145,.95,190],
+    [10,20,'혜성의 갑각수','pierce','#d0ebff',145,.95,190],
     [12,14,'잎바다의 고래','chain','#a4f8cc',114,1.13,189],
-    [0,27,"달토끼 정찰기","frost","#ceecff",38,1.56,142],
-    [1,27,"은빛 뿔사슴","chain","#e2f9c5",51,1.12,161],
-    [2,28,"태양 도깨비","burst","#ffb371",63,1.02,146],
-    [4,28,"금강 불곰","pierce","#ffdf92",67,0.96,151],
-    [1,29,"청동 바람개비","pierce","#c4f5ae",44,1.38,165],
-    [5,29,"기계 해오라기","chain","#9cddfc",57,1.04,184],
-    [2,30,"그림자 카라칼","execute","#c7b8ff",51,1.32,147],
-    [3,30,"밤안개 흑표","frost","#b9b5f3",43,1.39,153],
-    [0,31,"콩알 혜성","burst","#f4aabd",45,1.39,143],
-    [4,31,"박명 나방","execute","#efb6e8",61,1.06,157],
-    [27,28,"백월 망치수","pierce","#ffdcba",69,0.98,160],
-    [29,30,"회오리 비룡","chain","#80efd7",58,1.17,173],
-    [30,31,"월식 사신새","execute","#eea8ce",64,1.1,171],
-    [27,31,"눈꽃 박쥐","frost","#bce8fb",49,1.43,148],
+    [118,103,"달토끼 정찰기","frost","#ceecff",38,1.56,142],
+    [119,103,"은빛 뿔사슴","chain","#e2f9c5",51,1.12,161],
+    [122,105,"태양 도깨비","burst","#ffb371",63,1.02,146],
+    [114,105,"금강 불곰","pierce","#ffdf92",67,0.96,151],
+    [119,117,"청동 바람개비","pierce","#c4f5ae",44,1.38,165],
+    [120,117,"기계 해오라기","chain","#9cddfc",57,1.04,184],
+    [122,121,"그림자 카라칼","execute","#c7b8ff",51,1.32,147],
+    [123,121,"밤안개 흑표","frost","#b9b5f3",43,1.39,153],
+    [118,111,"콩알 혜성","burst","#f4aabd",45,1.39,143],
+    [114,111,"박명 나방","execute","#efb6e8",61,1.06,157],
+    [103,105,"백월 망치수","pierce","#ffdcba",69,0.98,160],
+    [117,121,"회오리 비룡","chain","#80efd7",58,1.17,173],
+    [121,111,"월식 사신새","execute","#eea8ce",64,1.1,171],
+    [103,111,"눈꽃 박쥐","frost","#bce8fb",49,1.43,148],
     [32,40,"동짓달의 순록","burst","#b9ffed",130,1.11,181],
     [34,37,"용광로의 봉황","chain","#ffbb97",145,1.04,187],
     [38,44,"월하의 맹수","execute","#eaaef1",147,1.09,182],
-    [36,42,"은하의 선도자","pierce","#bee9ff",155,1,194],
+    [36,42,"은하의 날개수","pierce","#bee9ff",155,1,194],
     [33,45,"빙하의 종달새","frost","#b9e4ff",121,1.28,174],
-    [0,100,"혈월 키메라","chain","#ff9ca4",38,1,150],
-    [1,101,"석화의 창기병","execute","#ffd899",42,1.13,156],
-    [2,102,"별불 실프","burst","#8bd9f7",46,1.26,162],
-    [3,103,"겨울의 맹위","pierce","#b1b6ff",50,1.39,168],
+    [118,105,"혈월 키메라","chain","#ff9ca4",38,1,150],
+    [119,105,"석화의 뿔짐승","execute","#ffd899",42,1.13,156],
+    [122,103,"별불 나방","burst","#8bd9f7",46,1.26,162],
+    [123,103,"겨울의 맹위","pierce","#b1b6ff",50,1.39,168],
     [4,104,"청철의 폭풍","frost","#adf0c4",54,1.52,174],
-    [5,105,"황금 미노타우로스","chain","#ff9ca4",58,1,150],
-    [27,106,"여명의 기마대","execute","#ffd899",62,1.13,156],
-    [28,107,"야행의 추적자","burst","#8bd9f7",66,1.26,162],
-    [29,108,"산호의 맹약","pierce","#b1b6ff",38,1.39,168],
-    [30,109,"푸른 천룡","frost","#adf0c4",42,1.52,174],
-    [31,110,"태양의 화룡","chain","#ff9ca4",46,1,150],
+    [120,105,"황금 미노타우로스","chain","#ff9ca4",58,1,150],
+    [114,103,"여명의 발굽수","execute","#ffd899",62,1.13,156],
+    [123,105,"야행의 추적자","burst","#8bd9f7",66,1.26,162],
+    [118,117,"산호의 맹약","pierce","#b1b6ff",38,1.39,168],
+    [118,121,"푸른 천룡","frost","#adf0c4",42,1.52,174],
+    [119,111,"태양의 화룡","chain","#ff9ca4",46,1,150],
     [0,111,"빙설의 방패","execute","#ffd899",50,1.13,156],
-    [1,112,"화산의 수호수","burst","#8bd9f7",54,1.26,162],
-    [2,113,"절대영도의 파장","pierce","#b1b6ff",58,1.39,168],
-    [3,114,"별뿔 제왕","frost","#adf0c4",62,1.52,174],
+    [119,121,"화산의 수호수","burst","#8bd9f7",54,1.26,162],
+    [122,117,"절대영도의 파장","pierce","#b1b6ff",58,1.39,168],
+    [114,117,"별뿔 제왕","frost","#adf0c4",62,1.52,174],
     [4,115,"발화의 날개","chain","#ff9ca4",66,1,150],
-    [5,116,"황혼의 대현자","execute","#ffd899",38,1.13,156],
+    [120,103,"황혼의 고대수","execute","#ffd899",38,1.13,156],
     [27,117,"철벽의 날개","burst","#8bd9f7",42,1.26,162],
-    [28,118,"비취 스펙터","pierce","#b1b6ff",46,1.39,168],
-    [29,119,"황금 행운묘","frost","#adf0c4",50,1.52,174],
+    [105,117,"비취 스펙터","pierce","#b1b6ff",46,1.39,168],
+    [123,117,"황금 행운묘","frost","#adf0c4",50,1.52,174],
     [30,120,"황야의 왕익","chain","#ff9ca4",54,1,150],
-    [31,121,"일곱 머리 군주","execute","#ffd899",58,1.13,156],
-    [0,122,"숲의 파수꾼","burst","#8bd9f7",62,1.26,162],
-    [1,123,"철벽 거신","pierce","#b1b6ff",66,1.39,168]
+    [114,121,"일곱 머리 군주","execute","#ffd899",58,1.13,156],
+    [122,111,"숲의 파수꾼","burst","#8bd9f7",62,1.26,162],
+    [123,111,"철벽 거신","pierce","#b1b6ff",66,1.39,168]
   ];
   const effects = {
     frost:'서리 · 이동 속도 감소',execute:'마무리 · 체력 낮은 적에 추가 피해',
@@ -157,6 +157,27 @@ const ZundaExpedition = (() => {
     };
   });
 
+  const retiredResults = new Set(['발화의 날개','철벽의 날개','황야의 왕익','빙설의 방패','청철의 폭풍']);
+  const humanRecruits = [
+    {type:136,name:'방패병 마렌',effect:'burst',color:'#c2dca3',dmg:26,rate:1.02,range:136,art:'maren'},
+    {type:137,name:'연금술사 베른',effect:'frost',color:'#b9f1ab',dmg:19,rate:1.28,range:149,art:'bern'},
+    {type:138,name:'검객 리아',effect:'execute',color:'#a6e1fa',dmg:28,rate:1.08,range:136,art:'ria'},
+    {type:139,name:'사막 궁수 자이드',effect:'pierce',color:'#f8ce92',dmg:24,rate:1.13,range:155,art:'zaid'}
+  ].map(unit=>({...unit,silhouette:'hero',skill:effects[unit.effect],portrait:'assets/humans/'+unit.art+'.webp'}));
+  const humanChampions = [
+    {type:140,first:136,second:104,name:'성채 기사 아델',effect:'burst',color:'#ffdb98',dmg:92,rate:1.02,range:160,art:'adel'},
+    {type:141,first:137,second:116,name:'별빛 공학자 오르반',effect:'chain',color:'#a7c2ff',dmg:86,rate:1.13,range:177,art:'orvan'},
+    {type:142,first:138,second:112,name:'홍련 무희 세나',effect:'execute',color:'#ff9b9b',dmg:99,rate:1.12,range:154,art:'sena'},
+    {type:143,first:139,second:106,name:'태양 창사 이리아',effect:'pierce',color:'#f3bf91',dmg:105,rate:.96,range:178,art:'iria'}
+  ].map(unit=>({...unit,hue:0,silhouette:'hero',projectile:390,skill:effects[unit.effect],portrait:'assets/humans/'+unit.art+'.webp'}));
+  const humanTypes = new Set([
+    0,1,2,3,4,5,27,28,29,30,31,100,101,102,104,106,108,112,113,115,116,
+    124,125,126,127,128,129,130,131,132,133,134,135,
+    ...humanRecruits.map(unit=>unit.type),...humanChampions.map(unit=>unit.type)
+  ]);
+  const fusionKind=type=>humanTypes.has(type) ? 'human' : 'monster';
+  const retiredRecruits=new Set([107,109,110]);
+
   const specialties = {
     seria:{family:128,gear:{name:'여명검',stat:'splashDamage',step:.08,detail:'강화마다 폭발 피해 +8%p'},skill:'새벽 폭발 · 주변 적에게 공격력의 62% 피해',splashRadius:86,splashDamage:.62},
     rune:{family:129,gear:{name:'은설 지팡이',stat:'slowDuration',step:.45,detail:'강화마다 빙결 지속 +0.45초'},skill:'빙결 주문 · 3.2초 동안 적 이동 속도 65% 감소',slowDuration:3.2,slowFactor:.35},
@@ -164,10 +185,10 @@ const ZundaExpedition = (() => {
     kaela:{family:131,gear:{name:'월흔도',stat:'armorBonus',step:.10,detail:'강화마다 장갑 적 추가 피해 +10%p'},skill:'갑옷 가르기 · 방어 무시, 장갑 적에게 피해 25% 증가',armorBonus:1.25}
   };
   const heroines = [
-    {type:124,first:15,second:16,name:'새벽검 로사',effect:'burst',color:'#ffaf80',dmg:134,rate:1.06,range:178,slug:'seria'},
-    {type:125,first:18,second:19,name:'서리술사 프패',effect:'frost',color:'#bceaff',dmg:116,rate:1.23,range:182,slug:'rune'},
-    {type:126,first:7,second:20,name:'뇌전궁 소설가',effect:'chain',color:'#91f5ca',dmg:124,rate:1.08,range:191,slug:'tessa'},
-    {type:127,first:14,second:20,name:'월식검 빰',effect:'pierce',color:'#dfb4ff',dmg:146,rate:.98,range:185,slug:'kaela'}
+    {type:124,first:1,second:4,name:'새벽검 로사',effect:'burst',color:'#ffaf80',dmg:134,rate:1.06,range:178,slug:'seria'},
+    {type:125,first:3,second:116,name:'서리술사 프패',effect:'frost',color:'#bceaff',dmg:116,rate:1.23,range:182,slug:'rune'},
+    {type:126,first:29,second:106,name:'뇌전궁 소설가',effect:'chain',color:'#91f5ca',dmg:124,rate:1.08,range:191,slug:'tessa'},
+    {type:127,first:30,second:104,name:'월식검 빰',effect:'pierce',color:'#dfb4ff',dmg:146,rate:.98,range:185,slug:'kaela'}
   ];
   const finalForms=heroines.map(hero=>({
     ...hero,...specialties[hero.slug],hue:0,silhouette:'hero',projectile:410,
@@ -185,17 +206,17 @@ const ZundaExpedition = (() => {
     portrait:'assets/heroines/'+rookie.slug+'-starter.webp'
   }));
   const middleForms = [
-    {type:132,first:128,second:12,name:'여명 기사 로사',dmg:67,rate:.98,range:157},
-    {type:133,first:129,second:6,name:'빙정술사 프패',dmg:54,rate:1.36,range:163},
-    {type:134,first:130,second:10,name:'번개궁 소설가',dmg:61,rate:1.09,range:177},
-    {type:135,first:131,second:8,name:'초승검 빰',dmg:74,rate:.99,range:151}
+    {type:132,first:128,second:1,name:'여명 기사 로사',dmg:67,rate:.98,range:157},
+    {type:133,first:129,second:3,name:'빙정술사 프패',dmg:54,rate:1.36,range:163},
+    {type:134,first:130,second:29,name:'번개궁 소설가',dmg:61,rate:1.09,range:177},
+    {type:135,first:131,second:30,name:'초승검 빰',dmg:74,rate:.99,range:151}
   ].map(form=>{
     const base=rookies.find(rookie=>rookie.type===form.first);
     return {...base,...form,hue:0,projectile:390,portrait:'assets/heroines/'+base.slug+'-vanguard.webp'};
   });
-  forms.push(...finalForms,...middleForms);
+  forms.push(...finalForms,...middleForms,...humanChampions);
   const fusionRecipes = [
-    ...forms,
+    ...forms.filter(form=>!retiredResults.has(form.name)),
     ...finalForms.flatMap(form=>[
       {...form,first:form.family},
       {...form,first:middleForms.find(middle=>middle.family===form.family).type}
@@ -289,5 +310,5 @@ const ZundaExpedition = (() => {
     g.fill();
     return canvas;
   }
-  return {forms,fusionRecipes,rookies,opponents,kind,images,region,terrain};
+  return {forms,fusionRecipes,rookies,humanRecruits,fusionKind,retiredRecruits,opponents,kind,images,region,terrain};
 })();

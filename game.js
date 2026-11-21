@@ -22,7 +22,12 @@ const cast = [
   {type:30,name:'간사이 시노비',slug:'shinobi',color:'#c9bbff',dmg:20,rate:1.42,range:141,effect:'execute',skill:'기습 · 체력이 낮은 적에 추가 피해'},
   {type:31,name:'안코몬',slug:'ankomon',color:'#f1a3c4',dmg:24,rate:1.07,range:151,effect:'chain',skill:'단팥 번개 · 인접한 적 두 명 타격'}
 ].concat([{"type":100,"name":"밤의 뱀파이어","tile":3,"effect":"pierce","color":"#8bd9f7","dmg":18,"rate":0.87,"range":134,"skill":"장갑 무시"},{"type":101,"name":"흑요석 메두사","tile":8,"effect":"frost","color":"#b1b6ff","dmg":21,"rate":1.04,"range":141,"skill":"적 이동 속도 감소"},{"type":102,"name":"반딧불 요정","tile":13,"effect":"chain","color":"#adf0c4","dmg":24,"rate":1.21,"range":148,"skill":"인접 적 연쇄 타격"},{"type":103,"name":"서리 웬디고","tile":16,"effect":"execute","color":"#ff9ca4","dmg":27,"rate":1.38,"range":155,"skill":"약해진 적 추가 피해"},{"type":104,"name":"청철 기사","tile":18,"effect":"burst","color":"#ffd899","dmg":30,"rate":0.87,"range":162,"skill":"범위 폭발"},{"type":105,"name":"황소 투사","tile":21,"effect":"pierce","color":"#8bd9f7","dmg":33,"rate":1.04,"range":134,"skill":"장갑 무시"},{"type":106,"name":"초원의 궁기병","tile":22,"effect":"frost","color":"#b1b6ff","dmg":18,"rate":1.21,"range":141,"skill":"적 이동 속도 감소"},{"type":107,"name":"달빛 늑대인간","tile":25,"effect":"chain","color":"#adf0c4","dmg":21,"rate":1.38,"range":148,"skill":"인접 적 연쇄 타격"},{"type":108,"name":"산호 인어","tile":28,"effect":"execute","color":"#ff9ca4","dmg":24,"rate":0.87,"range":155,"skill":"약해진 적 추가 피해"},{"type":109,"name":"푸른 비룡","tile":32,"effect":"burst","color":"#ffd899","dmg":27,"rate":1.04,"range":162,"skill":"범위 폭발"},{"type":110,"name":"불꽃 용","tile":34,"effect":"pierce","color":"#8bd9f7","dmg":30,"rate":1.21,"range":134,"skill":"장갑 무시"},{"type":111,"name":"빙설 거인","tile":44,"effect":"frost","color":"#b1b6ff","dmg":33,"rate":1.38,"range":141,"skill":"적 이동 속도 감소"},{"type":112,"name":"불꽃 정령","tile":46,"effect":"chain","color":"#adf0c4","dmg":18,"rate":0.87,"range":148,"skill":"인접 적 연쇄 타격"},{"type":113,"name":"빙결 정령","tile":50,"effect":"execute","color":"#ff9ca4","dmg":21,"rate":1.04,"range":155,"skill":"약해진 적 추가 피해"},{"type":114,"name":"별뿔 유니콘","tile":52,"effect":"burst","color":"#ffd899","dmg":24,"rate":1.21,"range":162,"skill":"범위 폭발"},{"type":115,"name":"화염 요정","tile":56,"effect":"pierce","color":"#8bd9f7","dmg":27,"rate":1.38,"range":134,"skill":"장갑 무시"},{"type":116,"name":"황혼 마법사","tile":66,"effect":"frost","color":"#b1b6ff","dmg":30,"rate":0.87,"range":141,"skill":"적 이동 속도 감소"},{"type":117,"name":"석상 가고일","tile":70,"effect":"chain","color":"#adf0c4","dmg":33,"rate":1.04,"range":148,"skill":"인접 적 연쇄 타격"},{"type":118,"name":"비취 슬라임","tile":85,"effect":"execute","color":"#ff9ca4","dmg":18,"rate":1.21,"range":155,"skill":"약해진 적 추가 피해"},{"type":119,"name":"황금 고양이","tile":95,"effect":"burst","color":"#ffd899","dmg":21,"rate":1.38,"range":162,"skill":"범위 폭발"},{"type":120,"name":"황야 그리핀","tile":105,"effect":"pierce","color":"#8bd9f7","dmg":24,"rate":0.87,"range":134,"skill":"장갑 무시"},{"type":121,"name":"맹독 히드라","tile":111,"effect":"frost","color":"#b1b6ff","dmg":27,"rate":1.04,"range":141,"skill":"적 이동 속도 감소"},{"type":122,"name":"숲의 올빼미곰","tile":118,"effect":"chain","color":"#adf0c4","dmg":30,"rate":1.21,"range":148,"skill":"인접 적 연쇄 타격"},{"type":123,"name":"철의 골렘","tile":129,"effect":"execute","color":"#ff9ca4","dmg":33,"rate":1.38,"range":155,"skill":"약해진 적 추가 피해"}]);
-if(expedition) cast.unshift(...ZundaExpedition.rookies);
+if(expedition) {
+  cast.unshift(...ZundaExpedition.rookies);
+  cast.push(...ZundaExpedition.humanRecruits);
+}
+const recruitPool=expedition ? cast.filter(unit=>!ZundaExpedition.retiredRecruits.has(unit.type)) : cast;
+const recruitableTypes=new Set(recruitPool.map(unit=>unit.type));
 const expansionArt = expedition ? ZundaExpedition.images() : null;
 const castByType = new Map(cast.map(character=>[character.type,character]));
 if(expedition) {
@@ -71,6 +76,7 @@ function restore() {
     const {encounter,...progress}=saved;
     const result={...defaults,...progress,spawned:0,phase:keepPhase(saved.phase),spawnTimer:.8,breakTimer:0,
       paused:saved.gameover===true||saved.life===0,gameover:saved.gameover===true||saved.life===0};
+    if(expedition) result.shopOffers=Array.isArray(saved.shopOffers) ? saved.shopOffers.filter(type=>recruitableTypes.has(type)) : [];
     if(expedition) result.gear=Object.fromEntries(ZundaExpedition.rookies.map(({family})=>{
       const rank=saved.gear?.[family];
       return [family,Number.isInteger(rank) ? Math.max(0,Math.min(2,rank)) : 0];
@@ -244,7 +250,7 @@ const supplies = [
   ['보급 상자','골드 45 · 보석 4개',()=>{state.gold+=45;state.gems+=4}],
   ['정예 도전','다음 적 체력 +40% · 통과하면 보석 7개 추가',()=>{state.elite=true}],
   ['동료 지원','동료 한 명 영입 · 만석이면 보석 4개',()=>{
-    if(state.units.length<storageLimit) recruit(cast[Math.floor(Math.random()*cast.length)].type);
+    if(state.units.length<storageLimit) recruit(recruitPool[Math.floor(Math.random()*recruitPool.length)].type);
     else state.gems+=4;
   }]
 ];
@@ -353,9 +359,9 @@ function spawn() {
 }
 function waveTotal(wave=state.wave){return expedition ? Math.min(14+wave*2+(wave>=5&&wave%4===1?5:0),78) : Math.min(12+wave*2,65)}
 function drawRecruit(roll) {
-  const owned=[...new Set(state.units.map(u=>u.type).filter(type=>castByType.has(type)))];
+  const owned=[...new Set(state.units.map(u=>u.type).filter(type=>recruitableTypes.has(type)))];
   if(owned.length && roll<.36) return owned[Math.floor(Math.random()*owned.length)];
-  return cast[Math.floor(Math.random()*cast.length)].type;
+  return recruitPool[Math.floor(Math.random()*recruitPool.length)].type;
 }
 function summon(silent=false) {
   if(state.gems<2) {if(!silent) toast('💎 보석이 부족합니다');return false;}
@@ -989,9 +995,15 @@ function ingredients(recipe) {
   return [recipe.first,recipe.second].map(type=>
     state.units.reduce((best,u)=>u.type===type && (!best || u.tier<best.tier) ? u : best,null));
 }
-function fuse(index,{filter,search}) {
+const fusionKindLabel=kind=>kind==='human' ? '인간형' : '몬스터';
+function canUseRecipe(recipe) {
+  if(!recipe) return false;
+  const kind=ZundaExpedition.fusionKind(recipe.type);
+  return ZundaExpedition.fusionKind(recipe.first)===kind && ZundaExpedition.fusionKind(recipe.second)===kind;
+}
+function fuse(index,{filter,search,species}) {
   const recipe=ZundaExpedition.fusionRecipes[index];
-  if(!recipe || state.gameover) return;
+  if(!canUseRecipe(recipe) || state.gameover) return;
   const [first,second]=ingredients(recipe);
   if(!first || !second) return;
   const anchor=first.reserve && !second.reserve ? second : first;
@@ -1005,36 +1017,38 @@ function fuse(index,{filter,search}) {
   refresh();
   persist();
   if(!saveConflict) {
-    showRecipes({filter,search,result});
+    showRecipes({filter,search,species,result});
     $('recipeStatus').focus();
   }
 }
-function showRecipes({filter='all',search='',result=''}={}) {
+function showRecipes({filter='all',search='',species='all',result=''}={}) {
   const rows=ZundaExpedition.fusionRecipes.map((recipe,index)=>{
     const owned=ingredients(recipe);
-    return {recipe,index,owned,count:owned.filter(Boolean).length};
+    return {recipe,index,owned,count:owned.filter(Boolean).length,kind:ZundaExpedition.fusionKind(recipe.type)};
   }).sort((a,b)=>b.count-a.count);
   const readyCount=rows.filter(row=>row.count===2).length;
   const nearCount=rows.filter(row=>row.count===1).length;
-  const buttons=rows.map(({recipe,index,owned,count})=>{
+  const buttons=rows.map(({recipe,index,owned,count,kind})=>{
     const materials=[recipe.first,recipe.second].map((type,i)=>{
       const unit=owned[i];
       return '<small class="recipe-material '+(unit?'owned':'missing')+'">'+roster[type].name+
         (unit?' · 보유 ★'+unit.tier:' · 필요')+'</small>';
     }).join('');
-    return `<button class="recipe" data-recipe="${index}" data-ready="${count===2}" data-owned="${count}"><img src="${portraits[recipe.type]}" alt="" style="--portrait-hue:${recipe.hue}deg"><span><b>${recipe.name}</b>${materials}<small>${recipe.skill}</small></span><em>${count===2?'조합 가능':count===1?'1명 부족':'2명 부족'}</em></button>`;
+    return `<button class="recipe" data-recipe="${index}" data-ready="${count===2}" data-owned="${count}" data-fusion-kind="${kind}"><img src="${portraits[recipe.type]}" alt="" style="--portrait-hue:${recipe.hue}deg"><span><b>${recipe.name}</b><small>${fusionKindLabel(kind)}</small>${materials}<small>${recipe.skill}</small></span><em>${count===2?'조합 가능':count===1?'1명 부족':'2명 부족'}</em></button>`;
   }).join('');
-  showModal(`<h2>동료 조합표</h2><p id="recipeStatus" role="status" tabindex="-1"></p><label class="recipe-filter">보기<select id="recipeFilter"><option value="all">전체 ${rows.length}</option><option value="ready">지금 조합 가능 ${readyCount}</option><option value="near">한 명만 더 필요 ${nearCount}</option></select></label><label class="recipe-filter"><input id="recipeSearch" type="search" placeholder="동료 또는 재료 이름" aria-label="동료 또는 재료를 검색"></label><p id="recipeEmpty" hidden></p><div class="recipes">${buttons}</div>`);
+  showModal(`<h2>동료 조합표</h2><p>인간형끼리 조합하면 인간형, 몬스터끼리 조합하면 몬스터가 태어납니다.</p><p id="recipeStatus" role="status" tabindex="-1"></p><label class="recipe-filter">보기<select id="recipeFilter"><option value="all">전체 ${rows.length}</option><option value="ready">지금 조합 가능 ${readyCount}</option><option value="near">한 명만 더 필요 ${nearCount}</option></select></label><label class="recipe-filter">종류<select id="recipeSpecies"><option value="all">전체</option><option value="human">인간형</option><option value="monster">몬스터</option></select></label><label class="recipe-filter"><input id="recipeSearch" type="search" placeholder="동료 또는 재료 이름" aria-label="동료 또는 재료를 검색"></label><p id="recipeEmpty" hidden></p><div class="recipes">${buttons}</div>`);
   $('recipeStatus').textContent=(result ? result+' ' : '')+'지금 조합 가능 '+readyCount+'개 · 한 명만 더 필요 '+nearCount+'개';
   $('recipeFilter').value=filter;
   $('recipeSearch').value=search;
+  $('recipeSpecies').value=species;
   const updateFilter=()=>{
     const query=$('recipeSearch').value.trim().toLocaleLowerCase();
     const mode=$('recipeFilter').value;
+    const kind=$('recipeSpecies').value;
     const required={ready:'2',near:'1'}[mode];
     let shown=0;
     for(const button of $('modalBody').querySelectorAll('[data-recipe]')) {
-      button.hidden=(required!==undefined && button.dataset.owned!==required) || !button.textContent.toLocaleLowerCase().includes(query);
+      button.hidden=(kind!=='all' && kind!==button.dataset.fusionKind) || (required!==undefined && button.dataset.owned!==required) || !button.textContent.toLocaleLowerCase().includes(query);
       if(!button.hidden) shown++;
     }
     const empty=$('recipeEmpty');
@@ -1042,20 +1056,21 @@ function showRecipes({filter='all',search='',result=''}={}) {
     empty.textContent=query ? '검색 결과가 없습니다.' : '이 조건에 맞는 조합이 없습니다. 전체 조합을 확인해 보세요.';
   };
   $('recipeFilter').onchange=updateFilter;
+  $('recipeSpecies').onchange=updateFilter;
   $('recipeSearch').oninput=updateFilter;
   updateFilter();
 }
 function showFusionPreview(index) {
   const recipe=ZundaExpedition.fusionRecipes[index];
-  if(!recipe || state.gameover) return;
-  const context={filter:$('recipeFilter').value,search:$('recipeSearch').value};
+  if(!canUseRecipe(recipe) || state.gameover) return;
+  const context={filter:$('recipeFilter').value,search:$('recipeSearch').value,species:$('recipeSpecies').value};
   const owned=ingredients(recipe);
   const ready=owned.every(Boolean);
   const resultTier=ready ? Math.min(...owned.map(unit=>unit.tier)) : null;
   const portrait=(type,status)=>`<div><img src="${portraits[type]}" alt="" style="--portrait-hue:${roster[type].hue??0}deg"><strong>${roster[type].name}</strong><small>${status}</small></div>`;
   const materials=[recipe.first,recipe.second].map((type,i)=>
     portrait(type,owned[i] ? '사용할 재료 · ★'+owned[i].tier : '아직 보유하지 않음'));
-  showModal(`<h2>조합 미리보기</h2><p>사용할 동료 두 명</p><div class="fusion-materials">${materials.join('')}</div><p>조합 결과</p><div class="fusion-result">${portrait(recipe.type,resultTier ? '★'+resultTier : '재료를 모으면 조합 가능')}</div><div class="title-menu"><button id="confirmFusion" ${ready?'':'disabled'}>조합 확정</button><button id="backToRecipes">조합표로 돌아가기</button></div>`);
+  showModal(`<h2>조합 미리보기</h2><p>${fusionKindLabel(ZundaExpedition.fusionKind(recipe.type))} 재료 두 명</p><div class="fusion-materials">${materials.join('')}</div><p>조합 결과</p><div class="fusion-result">${portrait(recipe.type,resultTier ? '★'+resultTier : '재료를 모으면 조합 가능')}</div><div class="title-menu"><button id="confirmFusion" ${ready?'':'disabled'}>조합 확정</button><button id="backToRecipes">조합표로 돌아가기</button></div>`);
   modalBack=()=>showRecipes(context);
   $('backToRecipes').onclick=modalBack;
   $('confirmFusion').onclick=()=>fuse(index,context);
@@ -1063,9 +1078,9 @@ function showFusionPreview(index) {
   $('modal').scrollTop=0;
 }
 function marketOffers() {
-  const pool=cast.map(character=>character.type);
+  const pool=recruitPool.map(character=>character.type);
   const team=[...new Set(state.units.map(unit=>unit.type))];
-  const owned=team.filter(type=>castByType.has(type));
+  const owned=team.filter(type=>recruitableTypes.has(type));
   const match=owned.length ? owned[Math.floor(Math.random()*owned.length)] : null;
   if(match!==null) pool.splice(pool.indexOf(match),1);
   const options=match===null ? [] : [match];
@@ -1105,7 +1120,7 @@ function spend(action,type) {
   const picked=state.units.find(u=>u.id===selectedUnit);
   if(action==='recruit') {
     const cost=4+Math.min(3,state.shopCount);
-    if(state.gems<cost || state.units.length>=storageLimit || !state.shopOffers.includes(type)) return;
+    if(state.gems<cost || state.units.length>=storageLimit || !state.shopOffers.includes(type) || !recruitableTypes.has(type)) return;
     state.gems-=cost;
     recruit(type);
     state.shopCount++;
@@ -1243,19 +1258,17 @@ function showTitleScreen() {
 
 // Change the release ID and notes together when publishing a player-facing update.
 const release = {
-  id:'2026-11-21-human-evolution',
-  title:'주인공 진화와 전용 무기',
+  id:'2026-11-21-fusion-lineages',
+  title:'인간형과 몬스터 조합',
   notes:[
-    '네 주인공은 같은 모습의 인간형으로 진화하고, 보급소에서 전용 무기를 강화할 수 있습니다.',
-    '네 주인공의 타이틀 일러스트가 화면 전체를 채웁니다.',
-    '접속 시 업데이트 안내 뒤에 전투 화면이 보이지 않습니다.',
-    '첫 동료 네 명은 전체 화면의 네 칸에서 선택합니다.',
-    '영입 결과와 조합 재료를 캐릭터 이미지로 확인할 수 있습니다.',
-    '한글 제목과 전투 UI의 글꼴을 바꿔 작은 화면에서 읽기 쉽게 다듬었습니다.'
+    '인간형끼리는 인간형으로, 몬스터끼리는 몬스터로 조합됩니다.',
+    '방패병 마렌, 연금술사 베른, 검객 리아, 사막 궁수 자이드를 영입할 수 있습니다. 새 인간형 상위 조합도 네 가지 추가했습니다.',
+    '일부 비슷한 용과 몬스터는 신규 영입·조합에서 제외했습니다. 이미 영입한 동료는 계속 사용할 수 있습니다.'
   ]
 };
 const releaseHistory = [
   release,
+  {title:'주인공 진화와 전용 무기',notes:['네 주인공의 인간형 중간 진화와 전용 무기, 전체 화면 타이틀, 영입·조합 미리보기가 추가됐습니다.']},
   {title:'네 명의 시작 동료와 새 조합표',notes:['첫 동료 네 명의 고유 공격과 재료 보유 여부를 보여주는 조합표가 추가됐습니다. 타이틀에 업데이트 내역과 저장된 원정 이어하기를 추가했습니다.']},
   {title:'타이틀 화면과 기본형 동료',notes:['타이틀에서 게임 시작하기를 눌러 원정을 시작합니다. 로사, 프패, 소설가, 빰의 기본형과 상위 조합 경로가 추가됐습니다.']},
   {title:'상위 조합 동료와 검붉은 군단',notes:['상위 조합 동료 네 명의 공격 모션과 아군 용 네 마리의 일러스트를 추가했습니다. 인간형 적은 아군과 겹칠 때 반투명해집니다.']},
