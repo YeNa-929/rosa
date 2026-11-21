@@ -21,3 +21,18 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 .zunda-credit a, [data-expedition] dialog a { color:#dbf7b2; }
 
 [data-expedition] .unitcard { flex-basis:110px; }
+
+[data-expedition] .formation-card { color:#f6ffe8; min-height:52px; text-align:left; cursor:pointer; }
+.formation-card[aria-pressed=true] { outline:2px solid #e8ffa8; outline-offset:-2px; background:#53654a; }
+[data-expedition] .tactics { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px; }
+.tactics button { min-height:44px; background:linear-gradient(#435d48,#314637); border-color:#779065; font-size:12px; font-weight:800; }
+.recipes, .market-grid { display:grid; gap:7px; }
+.recipes .recipe { display:grid; grid-template-columns:48px 1fr auto; gap:8px; align-items:center; min-height:58px; padding:5px 8px; text-align:left; }
+.recipe img { width:48px; height:48px; object-fit:contain; }
+.recipe small { display:block; color:#daf2cf; font-size:11px; line-height:1.4; }
+.recipe em { color:#e6f9a9; font:700 10px system-ui; }
+.market-grid button { min-height:44px; width:100%; text-align:left; background:#3d5749; }
+.market-grid p { margin:2px 0; color:#e1eec8; }
+
+.market-recruit { display:flex; align-items:center; gap:8px; }
+.market-recruit img { width:33px; height:36px; object-fit:contain; }
