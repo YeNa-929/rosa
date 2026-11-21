@@ -79,3 +79,10 @@ body[data-expedition] { --paper:#f6ffe8; --gold:#dcfcb1; --muted:#d0dfc9; backgr
 [data-expedition] #cards { min-height:64px; }
 [data-expedition] .formation-card { grid-template-columns:40px 1fr; flex-basis:120px; }
 [data-expedition] .formation-card img { width:40px; height:44px; }
+
+.battle-orders { display:grid; grid-template-columns: .92fr 1.08fr; gap:6px; margin-bottom:6px; }
+.battle-orders #interrupt { margin-bottom:0; }
+#tactics { min-height:44px; padding:4px 6px; display:flex; justify-content:space-between; gap:4px; align-items:center; background:linear-gradient(#28446b,#233452); font-weight:800; }
+#tactics small, .battle-orders #interrupt small { font-size:10px; }
+#tactics[aria-pressed=true] { border-color:#88ffe7; color:#b5fff1; }
+#aimHint { position:absolute; inset:auto 12px 45px; pointer-events:none; padding:6px 8px; color:#d5fffb; background:#163b4dee; border:1px solid #8effdc; border-radius:7px; font-size:12px; z-index:2; }

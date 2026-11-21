@@ -39,6 +39,11 @@ const expeditionSprites = expedition ? portraits.map((src,i) => {
   image.src=src;
   return image;
 }) : [];
+const attackSprites = expedition ? new Map(cast.filter(c=>c.tile).map(c=>{
+  const image=new Image();
+  image.src='assets/attacks/'+c.tile+'.webp';
+  return [c.type,image];
+})) : new Map();
 const bossInterval = expedition ? 4 : 5;
 const finalWave = 32;
 const rosterLimit = expedition ? 12 : 18;
@@ -47,13 +52,14 @@ let reserveView=false;
 const mergeCount = expedition ? 2 : 3;
 let selectedUnit = null;
 let deploymentPads=[];
+let command=null, slowField=null;
 let breaking=null, fieldImpact=0;
 const breakWindow=3.6;
 const keepPhase = phase => expedition && ['draft','reward'].includes(phase) ? phase : 'wave';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let terrain, path, lengths, pathLength, rosterKey, rosterOver, nextRefresh = 0, spellFlash = 0;
 const SAVE=expedition ? 'zunda-expedition-v1' : 'wonderland-defense-v2';let state, mobs=[],bullets=[],particles=[],visualTime=0,toastTimer=0,annTimer=0,last=performance.now(),W=400,H=420,uid=1,autosummonTimer=0,saveTimer=0;
-const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false,expansions:0,shopOffers:[],shopCount:0});
+const fresh=()=>({wave:1,gems:14,gold:60,life:25,upgrade:0,units:[],spawned:0,phase:expedition?'draft':'wave',spawnTimer:.9,breakTimer:0,speed:1,paused:false,auto:false,spellCD:0,kills:0,gameover:false,cleared:false,offers:[],power:0,tempo:0,elite:false,bossFocus:false,targetPriority:'lead',tactics:2,shield:0,expansions:0,shopOffers:[],shopCount:0});
 try{const s=JSON.parse(localStorage.getItem(SAVE)||'null');state=s&&Number.isFinite(s.wave)&&Array.isArray(s.units)?{...fresh(),...s,spawned:0,phase:keepPhase(s.phase),spawnTimer:.8,breakTimer:0,paused:s.gameover===true||s.life===0,gameover:s.gameover===true||s.life===0,units:s.units.slice(0,storageLimit).filter(u=>roster[u.type]&&u.tier>=1&&u.tier<=4).map(u=>({type:u.type,tier:u.tier,slot:u.slot,reserve:expedition&&u.reserve===true,id:uid++,cool:Math.random()}))}:fresh()}catch{state=fresh()}
 if(expedition && state.cleared && state.wave===16) {
   state.wave=17;
@@ -61,6 +67,7 @@ if(expedition && state.cleared && state.wave===16) {
   state.cleared=false;
   state.paused=false;
 }
+if(expedition && state.bossFocus) state.targetPriority='boss';
 const capacity=()=>expedition ? Math.min(rosterLimit,8+state.expansions*2) : rosterLimit;
 const deployedCount=()=>state.units.filter(u=>!u.reserve).length;
 if(expedition && deployedCount()>capacity()) state.expansions=Math.min(2,Math.ceil((deployedCount()-8)/2));
@@ -68,12 +75,12 @@ function persist(){try{localStorage.setItem(SAVE,JSON.stringify({...state,units:
 const beep = CourtAudio.effect;
 function announce(t){$('announcement').textContent=t;$('announcement').style.opacity=1;annTimer=1.7;beep(800)}
 function toast(t){$('toast').textContent=t;$('toast').style.opacity=1;toastTimer=1.9}
-const regionRoutes = [[[-0.07,0.18],[0.23,0.18],[0.36,0.29],[0.24,0.41],[0.43,0.54],[0.72,0.48],[0.88,0.6],[0.7,0.76],[0.45,0.7],[0.24,0.85],[0.24,1.1]],[[1.07,0.19],[0.78,0.19],[0.63,0.32],[0.8,0.43],[0.68,0.57],[0.31,0.45],[0.12,0.59],[0.35,0.74],[0.72,0.79],[0.72,1.1]],[[-0.07,0.22],[0.18,0.22],[0.41,0.15],[0.65,0.25],[0.8,0.38],[0.59,0.52],[0.29,0.44],[0.11,0.58],[0.24,0.73],[0.55,0.8],[0.84,0.77],[0.84,1.1]],[[1.07,0.16],[0.74,0.16],[0.63,0.27],[0.72,0.38],[0.88,0.52],[0.68,0.65],[0.43,0.58],[0.27,0.43],[0.13,0.54],[0.2,0.72],[0.43,0.84],[0.57,0.94],[0.57,1.1]]];
+const regionRoutes = [[[-0.08,0.15],[0.89,0.15],[0.89,0.87],[0.1,0.87],[0.1,0.34],[0.71,0.34],[0.71,0.7],[0.31,0.7],[0.31,0.5],[0.53,0.5]],[[1.08,0.19],[0.12,0.19],[0.12,0.88],[0.91,0.88],[0.91,0.36],[0.3,0.36],[0.3,0.72],[0.73,0.72],[0.73,0.53],[0.51,0.53]],[[-0.08,0.18],[0.9,0.18],[0.9,0.89],[0.09,0.89],[0.09,0.39],[0.68,0.39],[0.68,0.73],[0.3,0.73],[0.3,0.55],[0.5,0.55]],[[1.08,0.16],[0.1,0.16],[0.1,0.89],[0.9,0.89],[0.9,0.33],[0.29,0.33],[0.29,0.7],[0.7,0.7],[0.7,0.5],[0.48,0.5]]];
 const regionPads = regionRoutes.map(route=>{
   const pads=[];
   for(let row=0;row<7;row++) {
     for(let col=0;col<7;col++) {
-      const x=.10+col*.133,y=.16+row*.12;
+      const x=.14+col*.12,y=.22+row*.10;
       const distance=Math.min(...route.slice(1).map(([bx,by],i)=>{
         const [ax,ay]=route[i];
         const dx=(bx-ax)*320,dy=(by-ay)*270;
@@ -81,7 +88,7 @@ const regionPads = regionRoutes.map(route=>{
         const t=Math.max(0,Math.min(1,(qx*dx+qy*dy)/(dx*dx+dy*dy)));
         return Math.hypot(qx-dx*t,qy-dy*t);
       }));
-      if(distance>=23) pads.push({x,y,distance});
+      if(distance>=16) pads.push({x,y,distance});
     }
   }
   return pads.sort((a,b)=>a.distance-b.distance);
@@ -126,6 +133,7 @@ function resize() {
   lengths = path.slice(1).map(([x,y], i) => Math.hypot(x-path[i][0], y-path[i][1]));
   pathLength = lengths.reduce((sum, value) => sum + value, 0);
   paintTerrain(d);
+  if(slowField) {slowField.x*=scaleX;slowField.y*=scaleY;}
   for (const m of mobs) [m.x,m.y] = at(m.t);
   for (const item of [...bullets, ...particles]) {
     item.x *= scaleX;
@@ -198,6 +206,10 @@ function showChoices() {
       supplies[i][2]();
       state.wave++;
       state.shopCount=0;
+      state.tactics=2;
+      state.shield=0;
+      command=null;
+      slowField=null;
       if(previous!==ZundaExpedition.region(state.wave) || state.wave===17) resize();
     }
     state.phase='wave';
@@ -233,24 +245,27 @@ function clearWave() {
 }
 function prioritizes(candidate,current) {
   if(!current) return true;
-  if(state.bossFocus && candidate.boss!==current.boss) return candidate.boss;
+  if(state.targetPriority==='boss' && candidate.boss!==current.boss) return candidate.boss;
+  if(state.targetPriority==='support' && (candidate.kind==='mender')!==(current.kind==='mender')) return candidate.kind==='mender';
   return candidate.t>current.t;
 }
 function spawn() {
   const boss=state.wave%bossInterval===0 && state.spawned===waveTotal()-1;
   const kind=expedition ? ZundaExpedition.kind(state.wave,state.spawned,boss) : null;
   const model=kind ? ZundaExpedition.opponents[kind] : null;
-  const hp=(boss?550:65)*(expedition ? Math.pow(1.24,Math.min(15,state.wave-1))*Math.pow(1.106,Math.max(0,state.wave-16)) : Math.pow(1.24,state.wave-1))*(state.elite?1.4:1)*(model?.hp ?? 1);
+  const base=expedition ? (boss?760:70) : (boss?550:65);
+  const growth=expedition ? Math.pow(1.262,Math.min(15,state.wave-1))*Math.pow(1.145,Math.max(0,state.wave-16)) : Math.pow(1.24,state.wave-1);
+  const hp=base*growth*(state.elite?1.4:1)*(model?.hp ?? 1);
   const warded=expedition && state.spawned===waveTotal()-1 && (boss || state.wave%3===2);
   const m={id:uid++,t:0,hp,max:hp,boss,kind,model,armor:model?.armor ?? 0,slow:0,slowFactor:1,
-    warded,wardFloor:.48,breakTime:0,rearm:.29,step:0,lastStep:0,facing:1,
-    speed:(boss?.032:.061)*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1),x:0,y:0};
+    warded,wardFloor:.48,breakTime:0,rearm:.29,step:0,lastStep:0,facing:1,healTimer:1.1,
+    speed:(expedition ? (boss?.026:.047) : (boss?.032:.061))*(1+Math.min(state.wave,40)*.007)*(model?.speed ?? 1),x:0,y:0};
   [m.x,m.y]=at(0);
   mobs.push(m);
   state.spawned++;
   if(boss) announce((model?.name ?? '하트 군단의 보스')+' 등장!');
 }
-function waveTotal(){return Math.min(12+state.wave*2,65)}
+function waveTotal(){return expedition ? Math.min(14+state.wave*2+(state.wave>=5&&state.wave%4===1?5:0),78) : Math.min(12+state.wave*2,65)}
 function drawRecruit(roll) {
   const owned=[...new Set(state.units.map(u=>u.type).filter(type=>castByType.has(type)))];
   if(owned.length && roll<.36) return owned[Math.floor(Math.random()*owned.length)];
@@ -262,6 +277,7 @@ function upgrade(){const cost=30+state.upgrade*25;if(state.gold<cost){toast('�
 function spell(){if(state.spellCD>0){toast('마법 재사용 대기 중');return}state.spellCD=24;spellFlash=.75;mobs.forEach(m=>{if(m.hp<=0)return;damageMob(m,90+state.wave*11,'#9bd7ff',.65,25);m.slow=4;m.slowFactor=.35});announce('🌀 원더랜드 시간 정지!');beep(400,.3);refresh()}
 function refresh() {
   const s = state;
+  updateCommand();
   reconcileSlots();
   updateBreakControls();
   $('wave').textContent = s.wave;
@@ -309,7 +325,7 @@ function refresh() {
 }
 
 function end(){state.gameover=true;state.paused=true;refresh();persist();$('game').classList.toggle('over',!state.cleared);showModal(`<h2>${state.cleared?'원정 성공!':expedition?'원정 종료':'원더랜드 함락'}</h2><p>${state.wave} 웨이브까지 방어했습니다.</p><p>처치한 적: ${state.kills} · 강화 레벨: ${state.upgrade}</p><button id="retry" class="danger">다시 도전</button>`);$('retry').onclick=restart}
-function restart(){if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();reserveView=false;selectedUnit=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
+function restart(){if(!confirm('진행 상황을 초기화하고 새로 시작할까요?'))return;state=fresh();reserveView=false;selectedUnit=null;command=null;slowField=null;if(expedition){syncFocus();resize();}mobs=[];bullets=[];particles=[];breaking=null;fieldImpact=0;uid=1;rosterKey=undefined;spellFlash=0;$('game').classList.remove('over');closeModal();refresh();persist();if(expedition)showChoices();else announce('새로운 모험 시작!')}
 function showModal(html) {
   $('close').hidden = false;
   $('modalBody').innerHTML = html;
@@ -433,7 +449,70 @@ function interrupt() {
   updateBreakControls();
 }
 
+function updateCommand() {
+  if(!expedition) return;
+  $('tacticsCount').textContent=state.tactics+' / 2'+(state.shield ? ' · 방어막 '+state.shield : '');
+  $('tactics').disabled=state.gameover || state.tactics===0;
+  $('tactics').setAttribute('aria-pressed',command!==null);
+  $('aimHint').hidden=!command;
+  $('aimHint').textContent=command==='bomb'?'포격할 위치를 누르세요':'감속 지대를 놓을 위치를 누르세요';
+}
+function openCommands() {
+  if(state.gameover || choosing() || state.tactics===0) return;
+  if(command) { command=null;updateCommand();return; }
+  showModal(`<h2>전술 지령</h2><p>웨이브마다 포인트 2개를 받습니다. 전술마다 1개를 사용합니다.</p><div class="market-grid"><button data-order="bomb">집중 포격 · 지정 위치에 광역 피해</button><button data-order="slow">결빙 지대 · 지정 위치에 4초 감속</button><button data-order="shield" ${state.shield?'disabled':''}>방어막 · 다음 일반 돌파 1회 방어</button></div>`);
+}
+function selectCommand(name) {
+  if(state.gameover || choosing() || state.tactics===0) return;
+  if(name==='shield' && !state.shield) {
+    state.tactics--;
+    state.shield=1;
+    announce('출구에 방어막을 설치했습니다');
+    persist();
+  } else if(name==='bomb'||name==='slow') {
+    command=name;
+    selectedUnit=null;
+  }
+  closeModal();
+  refresh();
+}
+function fireCommand(event) {
+  if(!command || state.paused || choosing() || state.gameover || $('modal').open || state.tactics<=0) return;
+  const rect=canvas.getBoundingClientRect();
+  const x=event.clientX-rect.left, y=event.clientY-rect.top;
+  state.tactics--;
+  if(command==='bomb') {
+    for(const enemy of mobs) {
+      if(enemy.hp>0 && Math.hypot(enemy.x-x,enemy.y-y)<87) damageMob(enemy,enemy.max*.28,'#ffc180',.46,32);
+    }
+    particles.push({x,y,life:.67,duration:.67,radius:87,color:'#ffc180'});
+    fieldImpact=.23;
+    beep(180,.16);
+  } else {
+    slowField={x,y,time:4};
+    beep(410,.14);
+  }
+  command=null;
+  updateCommand();
+  persist();
+}
+function supportPulse(m,dt) {
+  if(m.kind!=='mender') return;
+  m.healTimer-=dt;
+  if(m.healTimer>0) return;
+  m.healTimer=2.1;
+  let healed=false;
+  for(const other of mobs) {
+    if(other===m || other.hp<=0 || other.hp>=other.max || other.boss || other.kind==='mender' ||
+        (other.healUntil??0)>visualTime || Math.hypot(m.x-other.x,m.y-other.y)>83) continue;
+    other.hp=Math.min(other.max,other.hp+other.max*.18);
+    other.healUntil=visualTime+1.5;
+    healed=true;
+  }
+  if(healed) particles.push({x:m.x,y:m.y,life:.43,duration:.43,radius:80,color:'#b3ff91'});
+}
 function moveEnemy(m,dt) {
+  supportPulse(m,dt);
   const oldX=m.x,oldY=m.y;
   if(m.warded && m.breakTime>0) {
     m.breakTime-=dt/state.speed;
@@ -446,7 +525,8 @@ function moveEnemy(m,dt) {
       beep(110,.24);
     }
   } else {
-    m.t+=m.speed*m.slowFactor*dt;
+    const fieldSlow=slowField && Math.hypot(m.x-slowField.x,m.y-slowField.y)<81 ? .43 : 1;
+    m.t+=m.speed*Math.min(m.slowFactor,fieldSlow)*dt;
     if(m.warded && m.t>=m.rearm && m.t<.92) {
       m.breakTime=breakWindow;
       breaking=m;
@@ -470,23 +550,31 @@ if(!path||state.paused||state.gameover||choosing()||$('modal').open)return;
 visualTime += dt;
 spellFlash = Math.max(0, spellFlash-dt);
 fieldImpact=Math.max(0,fieldImpact-dt/state.speed);
+if(slowField && (slowField.time-=dt)<=0) slowField=null;
 state.spellCD=Math.max(0,state.spellCD-dt);autosummonTimer-=dt;if(state.auto&&autosummonTimer<=0){summon(true);autosummonTimer=.6}
-if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&state.spawnTimer<=0){spawn();state.spawnTimer=Math.max(.26,.78-state.wave*.013)}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
+if(state.phase==='wave'){state.spawnTimer-=dt;if(state.spawned<waveTotal()&&state.spawnTimer<=0){spawn();state.spawnTimer=expedition && state.wave>=5 && state.spawned%5!==0 ? Math.max(.21,.64-state.wave*.014) : Math.max(.26,.78-state.wave*.013)}if(state.spawned===waveTotal()&&mobs.length===0){clearWave();return}}
 else{state.breakTimer-=dt;if(state.breakTimer<=0){state.wave++;state.spawned=0;state.spawnTimer=.5;state.phase='wave';announce('🌙 WAVE '+state.wave);persist()}}
-for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}moveEnemy(m,dt);if(m.t>=1){m.hp=-1;state.life-=m.boss?(expedition ? state.life : 5):m.warded?8:1;if(state.life<=0){state.life=0;end();return}}}
-for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)continue;const t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(Math.hypot(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=t.dmg*Math.pow(2.15,u.tier-1)*(1+state.upgrade*.25+state.power)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/(t.rate*(1+(u.tier-1)*.1+state.tempo))}}
+for(const m of mobs){if(m.hp<=0)continue;if(m.slow>0){m.slow-=dt;if(m.slow<=0)m.slowFactor=1}moveEnemy(m,dt);if(m.t>=1){m.hp=-1;const loss=m.boss?(expedition ? state.life : 5):m.warded?8:1;if(expedition && !m.boss && state.shield>0){state.shield--;announce('방어막이 돌파를 막았습니다');}else state.life-=loss;if(state.life<=0){state.life=0;end();return}}}
+for(let i=0;i<state.units.length;i++){const u=state.units[i];if(u.reserve)continue;const t=roster[u.type],p=unitPos(i);u.cool-=dt;if(u.cool>0)continue;let target=null;for(const m of mobs){if(m.hp<=0)continue;if(Math.hypot(m.x-p.x,m.y-p.y)<t.range*(1+(u.tier-1)*.08)&&prioritizes(m,target))target=m}if(target){u.fired=visualTime;u.aim=Math.atan2(target.y-p.y,target.x-p.x);const damage=t.dmg*Math.pow(expedition?1.98:2.15,u.tier-1)*(1+(expedition? .25*Math.min(8,state.upgrade)+.12*Math.max(0,state.upgrade-8) : state.upgrade*.25)+state.power)*(u.type===2&&Math.random()<.25?2.5:1);bullets.push({x:p.x,y:p.y,target,damage,color:t.color,type:u.type,speed:t.projectile});u.cool=1/(t.rate*(1+(u.tier-1)*.1+state.tempo))}}
 for(const b of bullets){if(b.target.hp<=0){b.dead=true;continue}const dx=b.target.x-b.x,dy=b.target.y-b.y,d=Math.hypot(dx,dy);if(d<=Math.max(13,b.speed*dt)){hit(b.target,b.damage,b);b.dead=true}else{const step=Math.min(d,b.speed*dt);b.x+=dx/d*step;b.y+=dy/d*step}}
 bullets=bullets.filter(b=>!b.dead);mobs=mobs.filter(m=>m.hp>0);particles.forEach(p=>p.life-=dt);particles=particles.filter(p=>p.life>0);
 saveTimer+=dt;if(saveTimer>12){saveTimer=0;persist()}}
 function drawGuardians(motion) {
   state.units.forEach((u, i) => {
     if(u.reserve) return;
-    const {x,y} = unitPos(i);
+    let {x,y} = unitPos(i);
+    if(motion && u.moveFrom) {
+      const progress=Math.min(1,(visualTime-u.moveFrom.time)/.32);
+      x=u.moveFrom.x+(x-u.moveFrom.x)*progress;
+      y=u.moveFrom.y+(y-u.moveFrom.y)*progress;
+      if(progress>=1) u.moveFrom=null;
+    }
     const color = roster[u.type].color;
     const size = Math.min(W*.111, H*.119, 49);
-    const shot = Math.max(0, 1-(visualTime-(u.fired ?? -1))/.2);
+    const attackAge=visualTime-(u.fired ?? -1);
+    const shot = Math.max(0,1-attackAge/.27);
     const arrival = Math.max(0, 1-(visualTime-(u.born ?? -1))/.4);
-    const kick = motion && shot ? shot*4 : 0;
+    const kick = motion && shot ? -Math.sin(shot*Math.PI)*7 : 0;
     if(u.id===selectedUnit) {
       g.beginPath();
       g.arc(x,y,roster[u.type].range*(1+(u.tier-1)*.08),0,Math.PI*2);
@@ -513,7 +601,9 @@ function drawGuardians(motion) {
     const idle = motion ? Math.sin(visualTime*3+i)*1.2 - 7*arrival : 0;
     const spriteX=x-(kick ? Math.cos(u.aim)*kick : 0);
     const spriteY=y+idle-(kick ? Math.sin(u.aim)*kick : 0);
-    const image=expeditionSprites[u.type];
+    const action=attackSprites.get(u.type);
+    const strike=motion && shot>0 && action?.complete && action.naturalWidth>0;
+    const image=strike ? action : expeditionSprites[u.type];
     if(!expedition) {
       g.drawImage(CourtArt.sprites[u.type],spriteX-size/2,spriteY-size*.68,size,size);
     } else if(image && (image.width && !('complete' in image) || image.complete && image.naturalWidth)) {
@@ -521,7 +611,12 @@ function drawGuardians(motion) {
       const scale=Math.min(size*1.38/sourceHeight,size*1.38/sourceWidth);
       const width=sourceWidth*scale, height=sourceHeight*scale;
       if(roster[u.type].hue) g.filter=`hue-rotate(${roster[u.type].hue}deg)`;
-      g.drawImage(image,spriteX-width/2,spriteY+size*.42-height,width,height);
+      g.save();
+      g.translate(spriteX,spriteY+size*.42);
+      if(strike && Math.cos(u.aim)<0) g.scale(-1,1);
+      if(!strike && motion && shot) g.rotate(Math.cos(u.aim)*shot*.14);
+      g.drawImage(image,-width/2,-height,width,height);
+      g.restore();
       g.filter='none';
     } else {
       g.fillStyle=color;
@@ -646,6 +741,11 @@ function draw() {
   if (!terrain) return;
   g.drawImage(terrain,0,0,W,H);
   const motion = !reducedMotion.matches && !state.paused && !$('modal').open;
+  if(slowField) {
+    g.beginPath();
+    g.arc(slowField.x,slowField.y,81,0,Math.PI*2);
+    g.fillStyle='#80aaff33';g.fill();g.strokeStyle='#95d7ffc0';g.lineWidth=2;g.stroke();
+  }
   drawGuardians(motion);
   drawEnemies(motion);
   drawEffects(motion);
@@ -698,7 +798,12 @@ function moveFormation(slot) {
     toast('출전 한도에 도달했습니다. 배치된 동료와 교체하세요');
     return;
   }
-  if(other) {other.slot=unit.slot;other.reserve=unit.reserve;}
+  if(!unit.reserve) unit.moveFrom={...unitPos(state.units.indexOf(unit)),time:visualTime};
+  if(other) {
+    other.moveFrom={...unitPos(state.units.indexOf(other)),time:visualTime};
+    other.slot=unit.slot;
+    other.reserve=unit.reserve;
+  }
   unit.slot=slot;
   unit.reserve=false;
   reserveView=false;
@@ -710,6 +815,7 @@ function moveFormation(slot) {
 function selectFormation(id) {
   const unit=state.units.find(item=>item.id===id);
   if(!unit || state.gameover) return;
+  command=null;
   if(selectedUnit!==null && selectedUnit!==id && !unit.reserve) {
     moveFormation(unit.slot);
     return;
@@ -825,12 +931,14 @@ function spend(action,type) {
 }
 function syncFocus() {
   const focus=$('focus');
-  focus.setAttribute('aria-pressed',state.bossFocus);
-  focus.textContent=state.bossFocus?'보스 우선':'선두 우선';
+  focus.setAttribute('aria-pressed',state.targetPriority!=='lead');
+  focus.textContent=({lead:'선두 우선',support:'회복병 우선',boss:'보스 우선'})[state.targetPriority];
 }
 syncSoundButton();
 if(expedition) {
   $('interrupt').onclick=interrupt;
+  $('tactics').onclick=openCommands;
+  canvas.addEventListener('click',fireCommand);
   $('reserveTab').onclick=()=>{reserveView=!reserveView;selectedUnit=null;refresh();};
   $('bench').onclick=()=>{
     const selected=state.units.find(unit=>unit.id===selectedUnit);
@@ -859,6 +967,8 @@ if(expedition) {
   $('modalBody').addEventListener('click',event=>{
     const button=event.target.closest('[data-recipe]');
     if(button) fuse(Number(button.dataset.recipe));
+    const order=event.target.closest('[data-order]');
+    if(order) selectCommand(order.dataset.order);
     const item=event.target.closest('[data-market]');
     if(item) spend(item.dataset.market,Number(item.dataset.type));
   });
@@ -866,8 +976,8 @@ if(expedition) {
     const card=event.target.closest('[data-unit]');
     if(card) selectFormation(Number(card.dataset.unit));
   });
-  $('focus').onclick=()=>{state.bossFocus=!state.bossFocus;syncFocus();persist();};
-  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 동료 카드를 고르고 전장에 나타나는 +를 누르면 빈 위치로 이동합니다. 다른 동료를 선택하면 서로 자리를 바꿉니다. 4웨이브마다 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
+  $('focus').onclick=()=>{state.targetPriority=({lead:'support',support:'boss',boss:'lead'})[state.targetPriority];state.bossFocus=state.targetPriority==='boss';syncFocus();persist();};
+  $('help').onclick=()=>showModal('<h2>원정 방법</h2><p>동료를 영입하고, 같은 동료·등급 두 명을 합성하세요. 서로 다른 동료는 조합표에서 몬스터로 진화시키세요. 보급소에서 지정 영입, 편성 확장, 훈련을 할 수 있습니다. 전술 지령은 웨이브마다 포격·결빙·방어막에 쓸 포인트 2개를 줍니다. 회복병이 섞이면 회복병 우선을 켜세요. 동료 카드를 고르고 전장에 나타나는 +를 누르면 빈 위치로 이동합니다. 다른 동료를 선택하면 서로 자리를 바꿉니다. 4웨이브마다 보스가 등장합니다. 일부 파수대와 모든 보스는 돌진 방패를 두릅니다. 예고가 뜨면 저지 버튼을 누르세요. 시간이 얼마 남지 않았을 때는 보너스 충격파가 발동합니다.</p><p>비영리 팬작품입니다. 캐릭터와 일러스트 권리는 도호쿠 즌코·즌다몬 프로젝트(SSS LLC.)에 있습니다.</p><p><a href="https://zunko.jp/guideline.html">공식 이용 가이드라인</a></p>');
   syncFocus();
 }
 if (state.gameover) end();

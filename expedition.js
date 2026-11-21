@@ -75,6 +75,7 @@ const ZundaExpedition = (() => {
   };
 
   const opponents = {
+    mender:  {name:'비취 회복병',hp:.92,speed:.92,armor:.10,color:'#b3ff91',shape:0,art:11},
     scout:   {name:'심연 추적자',hp:1,speed:1,armor:0,color:'#79edca',shape:0},
     runner:  {name:'잔광 사냥꾼',hp:.62,speed:1.65,armor:0,color:'#ff8cb8',shape:1},
     shell:   {name:'흑철 파수꾼',hp:1.33,speed:.79,armor:.38,color:'#ffba73',shape:2},
@@ -87,6 +88,7 @@ const ZundaExpedition = (() => {
 
   function kind(wave, spawned, boss) {
     if(boss) return ['bastion','herald','eclipse','sentinel'][(wave/4-1)%4];
+    if(wave>=5 && spawned%6===4) return 'mender';
     if(wave>16 && spawned%3===2) return 'wraith';
     if(wave>=7 && spawned%5===3) return 'wraith';
     if(wave>=3 && spawned%4===2) return 'shell';
@@ -154,7 +156,7 @@ const ZundaExpedition = (() => {
     return {
       familiars:Object.fromEntries(forms.map((f,i)=>[f.type,beastSrc(7+(i%9))])),
       enemies:Object.fromEntries(Object.entries(opponents).map(([key,o])=>[
-        key,{art:image(beastSrc(enemyKeys.indexOf(key))), fallback:makeSprite(o.color,o.shape,true,['bastion','herald','eclipse','sentinel'].includes(key))}
+        key,{art:image(beastSrc(o.art ?? enemyKeys.indexOf(key)-1)), fallback:makeSprite(o.color,o.shape,true,['bastion','herald','eclipse','sentinel'].includes(key))}
       ]))
     };
   }
@@ -205,14 +207,14 @@ const ZundaExpedition = (() => {
     g.lineJoin='round';
     g.beginPath();
     path.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));
-    for(const [size,color] of [[42,p.top+'bd'],[36,p.light+'70'],[33,p.top+'d8'],[28,p.road+'b0']]) {
+    for(const [size,color] of [[30,p.top+'bd'],[27,p.light+'70'],[24,p.top+'d8'],[21,p.road+'b0']]) {
       g.strokeStyle=color;
       g.lineWidth=size;
       g.stroke();
     }
     g.setLineDash([2,9]);
     g.lineCap='butt';
-    g.lineWidth=24;
+    g.lineWidth=18;
     g.strokeStyle=p.top+'70';
     g.stroke();
     g.lineWidth=1.3;
@@ -221,8 +223,7 @@ const ZundaExpedition = (() => {
     g.stroke();
     g.setLineDash([]);
 
-    const [exitX]=path.at(-2);
-    const exitY=height-12;
+    const [exitX,exitY]=path.at(-1);
     for(const side of [-1,1]) {
       const x=exitX+side*16;
       polygon(g,[[x-6,exitY+13],[x-7,exitY-14],[x,exitY-24],[x+7,exitY-14],[x+6,exitY+13]],p.stone);
